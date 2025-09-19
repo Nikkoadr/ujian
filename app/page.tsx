@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Clock, Info, Grid3X3, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, Info, Grid3X3 } from "lucide-react";
 import Header from "@/components/Header";
 import QuestionContent from "@/components/QuestionContent";
 import QuestionNavigation from "@/components/QuestionNavigation";
@@ -10,6 +10,7 @@ import Timer from "@/components/Timer";
 import FinishModal from "@/components/FinishModal";
 import { Answer } from "@/types";
 import { questionData } from "@/data/questions";
+import Swal from "sweetalert2";
 
 function App() {
   const [currentQuestion, setCurrentQuestion] = useState<number>(1);
@@ -63,7 +64,7 @@ function App() {
       <Header />
 
       {/* Konten utama */}
-      <div className="container mx-auto px-4 pt-24 pb-8 max-w-7xl">
+      <div className="container mx-auto px-4 pt-24 pb-8 max-w-10xl">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Header Soal */}
           <div
@@ -184,8 +185,18 @@ function App() {
         doubtfulCount={Object.values(isUncertain).filter(Boolean).length}
         timeLeft={timeLeft}
         onFinish={() => {
-          alert("Ujian selesai! Hasil akan diproses.");
-          window.location.href = "/";
+          Swal.fire({
+            title: "Ujian Selesai!",
+            text: "Hasil akan diproses.",
+            icon: "success",
+            timer: 2000, // otomatis hilang setelah 2 detik
+            showConfirmButton: false,
+            position: "top-end", // muncul di pojok kanan atas
+            toast: true, // tampil sebagai toast kecil
+            timerProgressBar: true,
+          }).then(() => {
+            window.location.href = "/logout";
+          });
         }}
       />
     </div>

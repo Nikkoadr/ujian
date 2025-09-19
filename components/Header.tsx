@@ -17,8 +17,8 @@ const Header: React.FC = () => {
           <div className="flex items-center gap-4">
             <img src="/logo.png" alt="Kemdikbud Logo" className="h-12 w-12" />
             <div>
-              <div className="font-bold text-lg">PUSMENDIK</div>
-              <div className="text-sm opacity-90">APLIKASI ANBK</div>
+              <div className="font-bold text-lg">Ujian Smkmuhkandanghaur</div>
+              <div className="text-sm opacity-90">SMK PK</div>
             </div>
           </div>
 

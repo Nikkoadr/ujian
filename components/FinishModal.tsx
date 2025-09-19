@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
-import { Clock, CheckCircle } from "lucide-react";
+import { Clock, } from "lucide-react";
+import Swal from "sweetalert2";
 
 interface FinishModalProps {
   isOpen: boolean;
@@ -9,7 +10,7 @@ interface FinishModalProps {
   totalQuestions: number;
   answeredCount: number;
   doubtfulCount: number;
-  timeLeft: number; // detik
+  timeLeft: number;
 }
 
 const FinishModal: React.FC<FinishModalProps> = ({
@@ -23,22 +24,27 @@ const FinishModal: React.FC<FinishModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const handleFinishClick = () => {
-    if (timeLeft > 300) {
-      // lebih dari 5 menit
-      if (
-        confirm(
-          `Waktu masih tersisa ${Math.floor(
-            timeLeft / 60
-          )} menit. Yakin ingin mengakhiri ujian?`
-        )
-      ) {
+const handleFinishClick = () => {
+  if (timeLeft > 300) {
+    // lebih dari 5 menit
+    Swal.fire({
+      title: "Waktu masih tersisa!",
+      text: `Waktu masih tersisa ${Math.floor(
+        timeLeft / 60
+      )} menit. Yakin ingin mengakhiri ujian?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, akhiri ujian",
+      cancelButtonText: "Batal",
+      reverseButtons: true,
+    }).then((result) => {
+      if (result.isConfirmed) {
         onFinish();
       }
-    } else {
-      onFinish();
-    }
-  };
+    });
+  }
+};
+
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -51,8 +57,6 @@ const FinishModal: React.FC<FinishModalProps> = ({
 
         {/* Status */}
         <div className="mb-6">
-          <CheckCircle size={64} className="mx-auto text-green-500 mb-4" />
-          <h4 className="text-lg font-semibold mb-2">Ujian Telah Berakhir</h4>
           <p className="text-gray-600">
             Jawaban Anda akan diproses secara otomatis setelah menekan tombol
             "Selesaikan Ujian".
