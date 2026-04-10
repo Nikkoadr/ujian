@@ -15,46 +15,6 @@
                     <i class="fas fa-calendar-plus fa-sm text-white-50 mr-2"></i> Buat Jadwal Ujian
                 </button>
             </div>
-
-            <div class="modal fade" id="modalImport" tabindex="-1" role="dialog" aria-labelledby="modalImportLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered" role="document">
-                    <div class="modal-content border-0 shadow" style="border-radius: 20px;">
-                        <div class="modal-header border-0 pt-4 px-4">
-                            <h5 class="modal-title font-weight-bold text-gray-800" id="modalImportLabel">
-                                <i class="fas fa-file-excel text-success mr-2"></i>Import Jadwal dari Excel
-                            </h5>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                        
-                        <form action="{{ route('mapel.import') }}" method="POST" enctype="multipart/form-data">
-                            @csrf
-                            <div class="modal-body px-4">
-                                <a href="{{ asset('assets/format_excel/mapel.xlsx') }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-download mr-1"></i> Download Format Excel
-                                </a>
-
-                                <div class="form-group mt-4">
-                                    <label class="small font-weight-bold text-dark">Pilih File Excel</label>
-                                    <div class="custom-file">
-                                        <input type="file" name="file_excel" class="custom-file-input" id="importFile" required>
-                                        <label class="custom-file-label" for="importFile">Pilih file...</label>
-                                    </div>
-                                    <small class="text-muted mt-2 d-block">Gunakan format .xlsx atau .xls</small>
-                                </div>
-                            </div>
-                            
-                            <div class="modal-footer border-0 p-4">
-                                <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal" style="border-radius: 10px;">Batal</button>
-                                <button type="submit" class="btn btn-success font-weight-bold px-4 shadow-sm" style="border-radius: 10px;">
-                                    Upload & Proses
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
             @endif
     </div>
 
@@ -151,6 +111,47 @@
 </div>
 
 {{-- MODAL TAMBAH --}}
+@if(Gate::allows('admin'))
+<div class="modal fade" id="modalImport" tabindex="-1" role="dialog" aria-labelledby="modalImportLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title font-weight-bold text-gray-800" id="modalImportLabel">
+                    <i class="fas fa-file-excel text-success mr-2"></i>Import Jadwal dari Excel
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            
+            <form action="{{ route('mapel.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body px-4">
+                    <a href="{{ asset('assets/format_excel/mapel.xlsx') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-download mr-1"></i> Download Format Excel
+                    </a>
+
+                    <div class="form-group mt-4">
+                        <label class="small font-weight-bold text-dark">Pilih File Excel</label>
+                        <div class="custom-file">
+                            <input type="file" name="file_excel" class="custom-file-input" id="importFile" required>
+                            <label class="custom-file-label" for="importFile">Pilih file...</label>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Gunakan format .xlsx atau .xls</small>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-0 p-4">
+                    <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal" style="border-radius: 10px;">Batal</button>
+                    <button type="submit" class="btn btn-success font-weight-bold px-4 shadow-sm" style="border-radius: 10px;">
+                        Upload & Proses
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 @if(Gate::allows('admin'))
 <div class="modal fade" id="modalTambahMapel" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
@@ -291,5 +292,10 @@
             }
         });
     }
+            // Custom File Input Label
+        $('.custom-file-input').on('change', function() {
+            let fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        });
 </script>
 @endpush

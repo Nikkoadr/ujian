@@ -36,7 +36,12 @@ Route::get('/ujian/{id}/selesai', [UjianController::class, 'selesai'])->name('uj
 
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
+
 Route::resource('siswa', SiswaController::class);
+Route::post('siswa/import', [SiswaController::class, 'import'])->name('siswa.import');
+Route::patch('siswa/{id}/toggle-status', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle-status');
+Route::post('siswa/{id}/block', [SiswaController::class, 'toggleStatus'])->name('siswa.block');
+
 Route::resource('pengawas', PengawasController::class);
 Route::resource('mapel', MapelController::class);
 Route::resource('laporan', LaporanController::class);
