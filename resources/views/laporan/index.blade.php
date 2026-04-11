@@ -1,66 +1,43 @@
 @extends('layouts.app')
-
-@section('title', $title)
+@section('title', 'Laporan Hasil Ujian')
 
 @section('content')
 <div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Laporan Hasil Ujian</h1>
+        <button onclick="window.print()" class="btn btn-sm btn-primary shadow-sm">
+            <i class="fas fa-print fa-sm text-white-50"></i> Cetak Laporan
+        </button>
+    </div>
 
-    <h1 class="h3 mb-4 text-gray-800">{{ $title }}</h1>
-
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Filter Laporan</h6>
-        </div>
+    <div class="card shadow mb-4 border-left-primary">
         <div class="card-body">
-            <form action="{{ route($route_name) }}" method="GET" id="form-filter">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label>Jenis Lembaga</label>
-                        <select name="jenis_lembaga_id" class="form-control">
-                            <option value="">Semua Jenis</option>
-                            @foreach($jenisLembaga as $jk)
-                                <option value="{{ $jk->id }}" {{ request('jenis_lembaga_id') == $jk->id ? 'selected' : '' }}>
-                                    {{ $jk->nama }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label>Status Izin</label>
-                        <select name="status" class="form-control" {{ $route_name == 'laporan.expired' ? 'disabled' : '' }}>
-                            <option value="">Semua Status</option>
-                            <option value="aktif" {{ request('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
-                            <option value="warning" {{ request('status') == 'warning' ? 'selected' : '' }}>Hampir Habis</option>
-                            <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Kadaluarsa</option>
-                        </select>
-                        @if($route_name == 'laporan.expired')
-                            <input type="hidden" name="status" value="expired">
-                        @endif
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label>Masa Berlaku (Mulai)</label>
-                        <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label>Masa Berlaku (Sampai)</label>
-                        <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
-                    </div>
+            <form action="{{ route('laporan.index') }}" method="GET" class="row">
+                <div class="col-md-5 mb-2">
+                    <label class="small font-weight-bold">Mata Pelajaran</label>
+                    <select class="form-control select2" name="mapel_id">
+                        <option value="">-- Semua Mata Pelajaran --</option>
+                        @foreach($mapel as $m)
+                            <option value="{{ $m->id }}" {{ request('mapel_id') == $m->id ? 'selected' : '' }}>
+                                {{ $m->nama_mapel }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
-
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-filter"></i> Tampilkan
-                    </button>
-                    
-                    <a href="{{ route($route_name) }}" class="btn btn-secondary">
-                        <i class="fas fa-sync"></i> Reset
-                    </a>
-
-                    <button type="button" class="btn btn-success float-right" onclick="cetakLaporan()">
-                        <i class="fas fa-print"></i> Cetak Laporan
+                <div class="col-md-4 mb-2">
+                    <label class="small font-weight-bold">Kelas</label>
+                    <select class="form-control" name="kelas_id">
+                        <option value="">-- Semua Kelas --</option>
+                        @foreach($kelas as $k)
+                            <option value="{{ $k->id }}" {{ request('kelas_id') == $k->id ? 'selected' : '' }}>
+                                {{ $k->nama_kelas }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-block shadow-sm">
+                        <i class="fas fa-search mr-1"></i> Filter Data
                     </button>
                 </div>
             </form>
@@ -70,38 +47,38 @@
     <div class="card shadow mb-4">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="datatable" width="100%" cellspacing="0">
-                    <thead class="bg-primary text-white">
+                <table class="table table-hover table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead class="thead-light">
                         <tr>
-                            <th>No</th>
-                            <th>NPSN</th>
-                            <th>Nama Lembaga</th>
-                            <th>Jenis</th>
-                            <th>Pengelola</th>
-                            <th>Sertifikat</th>
-                            <th>Masa Berlaku</th>
-                            <th>Status Izin</th>
+                            <th>NIS</th>
+                            <th>Nama Siswa</th>
+                            <th>Kelas</th>
+                            <th>Mapel</th>
+                            <th class="text-center">Benar</th>
+                            <th class="text-center">Salah</th>
+                            <th class="text-center">Nilai Akhir</th>
+                            <th class="text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($data as $item)
+                        @foreach($results as $res)
                         <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $item->npsn }}</td>
-                            <td>{{ $item->nama_lembaga }}</td>
-                            <td>{{ $item->jenis->nama ?? '-' }}</td>
-                            <td>{{ $item->pengelola }}</td>
-                            <td>{{ $item->izin->no_sertifikat ?? '-' }}</td>
-                            <td>
-                                {{ $item->izin && $item->izin->masa_berlaku ? \Carbon\Carbon::parse($item->izin->masa_berlaku)->format('d M Y') : '-' }}
+                            <td>{{ $res->nis }}</td>
+                            <td class="font-weight-bold text-gray-800">{{ $res->nama_siswa }}</td>
+                            <td>{{ $res->nama_kelas }}</td>
+                            <td><small class="badge badge-light border">{{ $res->nama_mapel }}</small></td>
+                            <td class="text-center text-success">{{ $res->benar }}</td>
+                            <td class="text-center text-danger">{{ $res->salah }}</td>
+                            <td class="text-center">
+                                <h5 class="mb-0 font-weight-bold {{ $res->nilai >= 75 ? 'text-primary' : 'text-warning' }}">
+                                    {{ $res->nilai }}
+                                </h5>
                             </td>
-                            <td>
-                                @if($item->status_teks)
-                                    <span class="badge badge-{{ $item->status_label }}">
-                                        {{ $item->status_teks }}
-                                    </span>
+                            <td class="text-center text-uppercase">
+                                @if($res->status_ujian == 'selesai')
+                                    <span class="badge badge-success px-3">Selesai</span>
                                 @else
-                                    <span class="badge badge-secondary">-</span>
+                                    <span class="badge badge-warning px-3">Proses</span>
                                 @endif
                             </td>
                         </tr>
@@ -111,31 +88,5 @@
             </div>
         </div>
     </div>
-
 </div>
 @endsection
-
-@push('scripts')
-<script>
-    $(document).ready(function() {
-        $('#datatable').DataTable();
-    });
-
-    function cetakLaporan() {
-        let form = document.getElementById('form-filter');
-        let baseUrl = "{{ route('laporan.cetak') }}";
-        
-        // Menggunakan URLSearchParams agar filter yang kosong tidak ikut dikirim
-        let formData = new FormData(form);
-        let params = new URLSearchParams();
-        
-        for (let pair of formData.entries()) {
-            if (pair[1]) {
-                params.append(pair[0], pair[1]);
-            }
-        }
-        
-        window.open(baseUrl + '?' + params.toString(), '_blank');
-    }
-</script>
-@endpush

@@ -1,226 +1,88 @@
-@extends('layouts.master')
-@section('title', 'Edit Peserta')
-@section('link')
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-@endsection
+@extends('layouts.app')
+@section('title', 'Edit Data Guru')
+
 @section('content')
-<div class="content-wrapper">
-    <section class="content-header">
-        <div class="container-fluid">
-            <h1>Edit Peserta</h1>
-        </div>
-    </section>
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Edit Profil Guru</h1>
+        <a href="{{ route('guru.index') }}" class="btn btn-sm btn-secondary shadow-sm" style="border-radius: 10px;">
+            <i class="fas fa-arrow-left fa-sm mr-2"></i> Kembali
+        </a>
+    </div>
 
-    <section class="content">
-        <div class="container-fluid">
-
-            <div class="card card-primary">
-                <form action="{{ route('peserta.update', $peserta->id) }}" method="POST">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card shadow mb-4 border-0" style="border-radius: 15px;">
+                <div class="card-header py-3 bg-white border-0">
+                    <h6 class="m-0 font-weight-bold text-primary">Form Perubahan Data Guru</h6>
+                </div>
+                
+                <form action="{{ route('guru.update', $guru->id) }}" method="POST">
                     @csrf
                     @method('PUT')
-                    <div class="card-body row">
-                        {{-- Nama --}}
-                        <div class="form-group col-md-6">
-                            <label>Nama Lengkap</label>
-                            <input type="text" name="nama"
-                                class="form-control @error('nama') is-invalid @enderror"
-                                value="{{ old('nama', $peserta->user->nama) }}">
-                            @error('nama')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                    
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label class="small font-weight-bold text-dark">NIP Guru</label>
+                                <input type="text" name="nip" class="form-control @error('nip') is-invalid @enderror" 
+                                       value="{{ old('nip', $guru->nip) }}" required style="border-radius: 8px;">
+                                @error('nip') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            
+                            <div class="col-md-6 form-group">
+                                <label class="small font-weight-bold text-dark">Nama Lengkap & Gelar</label>
+                                <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror" 
+                                       value="{{ old('nama', $guru->user->nama) }}" required style="border-radius: 8px;">
+                                @error('nama') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
                         </div>
 
-                        {{-- Email --}}
-                        <div class="form-group col-md-6">
-                            <label>Email</label>
-                            <input type="email" name="email"
-                                class="form-control @error('email') is-invalid @enderror"
-                                value="{{ old('email', $peserta->user->email) }}">
-                            @error('email')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                        <div class="row mt-2">
+                            <div class="col-md-6 form-group">
+                                <label class="small font-weight-bold text-dark">Jenis Kelamin</label>
+                                <select name="jenis_kelamin" class="form-control @error('jenis_kelamin') is-invalid @enderror" style="border-radius: 8px;">
+                                    <option value="laki-laki" {{ old('jenis_kelamin', $guru->user->jenis_kelamin) == 'laki-laki' ? 'selected' : '' }}>Laki-laki</option>
+                                    <option value="perempuan" {{ old('jenis_kelamin', $guru->user->jenis_kelamin) == 'perempuan' ? 'selected' : '' }}>Perempuan</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 form-group">
+                                <label class="small font-weight-bold text-dark">Email (Username)</label>
+                                <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" 
+                                       value="{{ old('email', $guru->user->email) }}" required style="border-radius: 8px;">
+                                @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
                         </div>
 
-                        {{-- Jenis Kelamin --}}
-                        <div class="form-group col-md-6">
-                            <label>Jenis Kelamin</label>
-                            <select name="jenis_kelamin"
-                                class="form-control @error('jenis_kelamin') is-invalid @enderror">
-                                <option value="">-- Pilih --</option>
-                                <option value="Laki-laki"
-                                    {{ old('jenis_kelamin', $peserta->user->jenis_kelamin) == 'Laki-laki' ? 'selected' : '' }}>
-                                    Laki-laki
-                                </option>
-                                <option value="Perempuan"
-                                    {{ old('jenis_kelamin', $peserta->user->jenis_kelamin) == 'Perempuan' ? 'selected' : '' }}>
-                                    Perempuan
-                                </option>
-                            </select>
-                            @error('jenis_kelamin')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        <hr class="my-4">
 
-                        {{-- No Telp --}}
-                        <div class="form-group col-md-6">
-                            <label>No Telepon</label>
-                            <input type="text" name="no_telp"
-                                class="form-control @error('no_telp') is-invalid @enderror"
-                                value="{{ old('no_telp', $peserta->user->no_telp) }}">
-                            @error('no_telp')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        {{-- Password --}}
-                        <div class="form-group col-md-6">
-                            <label>Password Baru</label>
-                            <input type="password" name="password"
-                                class="form-control @error('password') is-invalid @enderror"
-                                placeholder="Kosongkan jika tidak diubah">
-                            @error('password')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Konfirmasi Password --}}
-                        <div class="form-group col-md-6">
-                            <label>Konfirmasi Password</label>
-                            <input type="password" name="password_confirmation"
-                                class="form-control"
-                                placeholder="Ulangi password baru">
-                        </div>
-                        {{-- Tempat Lahir --}}
-                        <div class="form-group col-md-6">
-                            <label>Tempat Lahir</label>
-                            <input type="text" name="tempat_lahir"
-                                class="form-control @error('tempat_lahir') is-invalid @enderror"
-                                value="{{ old('tempat_lahir', $peserta->user->tempat_lahir) }}">
-                            @error('tempat_lahir')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Tanggal Lahir --}}
-                        <div class="form-group col-md-6">
-                            <label>Tanggal Lahir</label>
-                            <input type="date" name="tanggal_lahir"
-                                class="form-control @error('tanggal_lahir') is-invalid @enderror"
-                                value="{{ old('tanggal_lahir', $peserta->user->tanggal_lahir) }}">
-                            @error('tanggal_lahir')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- NIS --}}
-                        <div class="form-group col-md-6">
-                            <label>NIS</label>
-                            <input type="text" name="nis"
-                                class="form-control @error('nis') is-invalid @enderror"
-                                value="{{ old('nis', $peserta->nis) }}">
-                            @error('nis')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- NISN --}}
-                        <div class="form-group col-md-6">
-                            <label>NISN</label>
-                            <input type="text" name="nisn"
-                                class="form-control @error('nisn') is-invalid @enderror"
-                                value="{{ old('nisn', $peserta->nisn) }}">
-                            @error('nisn')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Kelas --}}
-                        <div class="form-group col-md-6">
-                            <label>Kelas</label>
-                            <select name="kelas_id"
-                                class="form-control @error('kelas_id') is-invalid @enderror">
-                                <option value="">-- Pilih Kelas --</option>
-                                @foreach ($kelas as $k)
-                                    <option value="{{ $k->id }}"
-                                        {{ old('kelas_id', $peserta->kelas_id) == $k->id ? 'selected' : '' }}>
-                                        {{ $k->nama_kelas }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('kelas_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Tahun Ajaran --}}
-                        <div class="form-group col-md-6">
-                            <label>Tahun Ajaran</label>
-                            <select name="tahun_ajaran_id"
-                                class="form-control @error('tahun_ajaran_id') is-invalid @enderror">
-                                <option value="">-- Pilih Tahun Ajaran --</option>
-                                @foreach ($tahun_ajaran as $ta)
-                                    <option value="{{ $ta->id }}"
-                                        {{ old('tahun_ajaran_id', $peserta->tahun_ajaran_id) == $ta->id ? 'selected' : '' }}>
-                                        {{ $ta->nama_tahun_ajaran }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('tahun_ajaran_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label for="nama_dudi">Nama DUDI</label>
-
-                            <input type="text"
-                                class="form-control @error('dudi_id') is-invalid @enderror"
-                                id="nama_dudi"
-                                value="{{ $peserta->peserta_pkl->dudi->nama_dudi ?? '' }}">
-
-                            <input type="hidden"
-                                name="dudi_id"
-                                id="dudi_id"
-                                value="{{ $peserta->peserta_pkl->dudi_id ?? '' }}">
-
-                            @error('dudi_id')
-                                <div class="invalid-feedback">
-                                    {{ $message }}
+                        <div class="bg-light p-3 border" style="border-radius: 12px;">
+                            <h6 class="font-weight-bold text-dark mb-2 small"><i class="fas fa-lock mr-2"></i>Ganti Password (Kosongkan jika tidak diubah)</h6>
+                            <div class="row">
+                                <div class="col-md-6 form-group">
+                                    <label class="small text-muted">Password Baru</label>
+                                    <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" 
+                                           placeholder="Min. 8 karakter" style="border-radius: 8px;">
+                                    @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                            @enderror
+                                <div class="col-md-6 form-group">
+                                    <label class="small text-muted">Konfirmasi Password Baru</label>
+                                    <input type="password" name="password_confirmation" class="form-control" 
+                                           placeholder="Ulangi password" style="border-radius: 8px;">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="card-footer">
-                        <a href="{{ route('peserta.index') }}" class="btn btn-secondary">Batal</a>
-                        <button type="submit" class="btn btn-primary float-right">
-                            Simpan Perubahan
+                    <div class="card-footer border-0 bg-white p-4 text-right">
+                        <button type="submit" class="btn btn-primary font-weight-bold px-5 shadow" style="border-radius: 10px;">
+                            <i class="fas fa-save mr-2"></i> Simpan Perubahan
                         </button>
                     </div>
-
                 </form>
             </div>
-
         </div>
-    </section>
+    </div>
 </div>
-@endsection
-@section('scripts')
-<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-<script>
-$(function() {
-    function setupAutocomplete(selector, hiddenSelector, url) {
-        $(selector).autocomplete({
-            source: url,
-            minLength: 2,
-            select: function(event, ui) {
-                $(selector).val(ui.item.label);
-                $(hiddenSelector).val(ui.item.id);
-                return false;
-            }
-        });
-    }
-
-    setupAutocomplete("#nama_peserta", "#peserta_id", "/autocomplete/peserta");
-    setupAutocomplete("#nama_dudi", "#dudi_id", "/autocomplete/dudi");
-});
-</script>
 @endsection

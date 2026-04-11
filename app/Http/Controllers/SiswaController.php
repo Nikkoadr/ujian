@@ -30,12 +30,12 @@ class SiswaController extends Controller
      */
     public function index()
     {
-        $kelas = Kelas::with('tingkat', 'kompetensi')->get();
+        $kelas = Kelas::with('tingkat', 'kompetensi_keahlian')->get();
 
         $siswas = Siswa::with([
             'user',
             'kelas.tingkat',
-            'kelas.kompetensi'
+            'kelas.kompetensi_keahlian'
         ])
             ->orderBy('created_at', 'desc')
             ->get();

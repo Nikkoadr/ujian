@@ -36,7 +36,7 @@ class HomeController extends Controller
 
             $user = User::with([
                 'siswa.kelas.tingkat',
-                'siswa.kelas.kompetensi'
+                'siswa.kelas.kompetensi_keahlian'
             ])->find(Auth::id());
 
             $siswa = $user->siswa;

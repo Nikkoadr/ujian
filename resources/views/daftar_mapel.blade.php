@@ -54,7 +54,7 @@
                 <div>
                     <h2 class="text-lg font-black text-slate-800 tracking-tight">{{ $user->nama }}</h2>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        {{ $kelas->tingkat->nama_tingkat }} | {{ $kelas->kompetensi->nama_kompetensi }} | {{ $kelas->nama_kelas }}
+                        {{ $kelas->tingkat->nama_tingkat }} | {{ $kelas->kompetensi_keahlian->nama_kompetensi }} | {{ $kelas->nama_kelas }}
                     </p>
                 </div>
             </div>

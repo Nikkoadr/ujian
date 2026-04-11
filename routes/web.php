@@ -11,6 +11,7 @@ use App\Http\Controllers\GuruController;
 use App\Http\Controllers\PengawasController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\KelasController;
+use App\Http\Controllers\TokenController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,8 +27,6 @@ Route::get('/home', [HomeController::class, 'index'])->name('home');
 
 Route::post('/ujian/validasi', [MapelController::class, 'validasiToken'])->name('ujian.validasi');
 Route::post('/mapel/import', [MapelController::class, 'import'])->name('mapel.import');
-
-Route::get('/ujian/token', [UjianController::class, 'index'])->name('token.index');
 
 Route::get('/ujian/{id}/mulai', [UjianController::class, 'index'])->name('ujian.mulai');
 Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
@@ -56,3 +55,7 @@ Route::prefix('soal')->name('soal.')->group(function () {
 
     Route::delete('/{id}', [SoalController::class, 'destroy'])->name('destroy');
 });
+
+Route::get('/token', [TokenController::class, 'index'])->name('token.index');
+
+Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
