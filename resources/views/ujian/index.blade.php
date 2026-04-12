@@ -34,14 +34,23 @@
         <div class="max-w-[1440px] mx-auto px-4 h-14 sm:h-20 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <img src="{{ asset('assets/img/logo.png') }}" class="w-7 h-7 sm:w-9 sm:h-9 object-contain">
-                <div class="leading-none">
+                <div class="leading-none hidden sm:block">
                     <h1 class="text-sm sm:text-lg font-extrabold tracking-tight">CBT</h1>
                     <p class="text-[7px] sm:text-[9px] font-bold opacity-70 uppercase tracking-widest">Digital Assessment</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-xl border border-white/10">
-                <span x-text="formatTime(timeLeft)" class="font-mono font-bold text-sm sm:text-lg tracking-tighter"></span>
+            <div class="flex items-center gap-2 sm:gap-4">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/10">
+                    <div :class="isSaving ? 'bg-amber-400 animate-pulse' : (isOnline ? 'bg-emerald-400' : 'bg-red-400')" 
+                         class="w-2 h-2 rounded-full transition-colors"></div>
+                    <span class="text-[9px] font-black uppercase tracking-wider opacity-90 hidden xs:block" 
+                          x-text="isSaving ? 'Menyimpan...' : (isOnline ? 'Sinkron' : 'Offline')"></span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-xl border border-white/10">
+                    <span x-text="formatTime(timeLeft)" class="font-mono font-bold text-sm sm:text-lg tracking-tighter"></span>
+                </div>
             </div>
 
             <div class="relative" x-data="{ open: false }" @click.away="open = false">
@@ -49,14 +58,12 @@
                     <div class="w-7 h-7 rounded-full bg-sky-500 flex items-center justify-center font-bold text-xs uppercase shadow-inner">
                         {{ substr(Auth::user()->nama, 0, 1) }}
                     </div>
-                    <span class="text-xs font-bold hidden sm:block">{{ Auth::user()->nama }}</span>
+                    <span class="text-xs font-bold hidden md:block">{{ Auth::user()->nama }}</span>
                     <svg class="w-3 h-3 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
 
                 <div x-show="open" x-cloak 
                      x-transition:enter="transition ease-out duration-100"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
                      class="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[110]">
                     <div class="px-4 py-2 border-b border-slate-50 mb-1">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Siswa</p>
@@ -83,7 +90,7 @@
                     </div>
                 </div>
                 <button @click="showMobileNav = true" class="md:hidden px-4 py-2 bg-sky-50 text-sky-700 rounded-xl text-[10px] font-black border border-sky-100 uppercase">
-                    Daftar Soal
+                    Peta Soal
                 </button>
             </div>
 
@@ -101,13 +108,13 @@
                         <template x-for="opt in currentSoal.pilihan" :key="opt.db_id">
                             <label class="flex items-start gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white"
                                    :class="currentSoal.jawaban_terpilih == opt.db_id ? 'bg-sky-50 border-sky-500 shadow-sm' : 'border-slate-100 hover:border-sky-200 shadow-sm'">
-                                <input type="radio" class="hidden" @change="handleSelect(opt.db_id)" :checked="currentSoal.jawaban_terpilih == opt.db_id">
+                                <input type="radio" name="jawaban" class="hidden" @change="handleSelect(opt.db_id)" :checked="currentSoal.jawaban_terpilih == opt.db_id">
                                 <div class="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-xl border-2 font-black text-xs sm:text-sm"
                                      :class="currentSoal.jawaban_terpilih == opt.db_id ? 'bg-sky-600 border-sky-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-400'">
                                     <span x-text="opt.label"></span>
                                 </div>
                                 <div class="pt-1.5 flex-1">
-                                    <span class="font-bold text-slate-700 text-xs sm:text-sm" x-html="opt.teks"></span>
+                                    <div class="font-bold text-slate-700 text-xs sm:text-sm" x-html="opt.teks"></div>
                                     <template x-if="opt.gambar">
                                         <div class="mt-2">
                                             <img :src="opt.gambar" class="max-w-full sm:w-48 h-auto rounded-lg border border-slate-100 shadow-sm">
@@ -120,7 +127,7 @@
                 </div>
             </div>
 
-            <div class="px-4 py-4 sm:px-6 sm:py-6 border-t border-slate-100 bg-white flex items-center justify-between gap-2">
+            <div class="px-4 py-4 border-t border-slate-100 bg-white flex items-center justify-between gap-2">
                 <button @click="prev()" :disabled="currentIndex === 0" class="flex-1 sm:flex-none px-5 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-bold text-xs disabled:opacity-20 uppercase">Kembali</button>
                 <button @click="toggleRagu()" class="flex-1 sm:flex-none px-8 py-3.5 rounded-2xl font-bold text-xs uppercase shadow-sm"
                         :class="currentSoal.is_ragu ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 border border-amber-200'">
@@ -149,7 +156,7 @@
                 </div>
 
                 <div class="p-6 bg-slate-50 border-t border-slate-100">
-                    <button @click="confirmSelesai()" class="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-100">
+                    <button @click="confirmSelesai()" class="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
                         Selesai Ujian
                     </button>
                 </div>
@@ -169,98 +176,62 @@
                 timeLeft: Math.floor({{ $timeLeft }}),
                 currentIndex: 0,
                 listSoal: @json($soal),
-                pelanggaran: parseInt(localStorage.getItem('cheat_count')) || 0,
-                maxPelanggaran: 3,
-                isBlocked: false,
-                isProcessingViolation: false, // Flag debounce
+                isSaving: false,
+                isOnline: navigator.onLine,
 
                 get currentSoal() { return this.listSoal[this.currentIndex]; },
 
                 init() {
                     this.startTimer();
                     this.refreshMath();
-                    this.setupProtection();
+                    
+                    window.addEventListener('online',  () => this.isOnline = true);
+                    window.addEventListener('offline', () => this.isOnline = false);
                 },
 
-                setupProtection() {
-                    // 1. Deteksi Kehilangan Fokus (Cara paling ketat)
-                    window.onblur = () => {
-                        if (!this.isBlocked && !this.isProcessingViolation) {
-                            this.isProcessingViolation = true;
-                            this.handleViolation();
-                            
-                            // Debounce 2 detik agar tidak terpicu berkali-kali saat transisi
-                            setTimeout(() => { this.isProcessingViolation = false; }, 2000);
-                        }
-                    };
-
-                    // 2. Deteksi Keluar Jendela Jaringan (Opsional: jika mouse keluar area halaman)
-                    document.addEventListener("mouseleave", (e) => {
-                        // Bisa diaktifkan jika ingin lebih ketat lagi
-                        // this.handleViolation();
-                    });
+                // Enkripsi Payload ke Base64 (Cocok dengan Controller)
+                encrypt(data) {
+                    return btoa(JSON.stringify(data));
                 },
 
-                async handleViolation() {
-                    this.pelanggaran++;
-                    localStorage.setItem('cheat_count', this.pelanggaran);
+                async saveToDb() {
+                    if (!this.isOnline) return;
+                    this.isSaving = true;
 
-                    if (this.pelanggaran >= this.maxPelanggaran) {
-                        this.isBlocked = true;
-                        await this.blokirUser();
-                    } else {
-                        Swal.fire({
-                            title: 'Peringatan!',
-                            text: `Anda terdeteksi keluar dari halaman ujian (${this.pelanggaran}/${this.maxPelanggaran}). Jika mencapai limit, akun Anda akan diblokir!`,
-                            icon: 'warning',
-                            confirmButtonColor: '#0ea5e9',
-                            allowOutsideClick: false
-                        });
-                    }
-                },
-
-                async blokirUser() {
-                    localStorage.removeItem('cheat_count');
                     try {
-                        // 1. Hit API Blokir (Gunakan await agar DB terupdate dulu)
-                        await fetch("{{ route('ujian.blokir') }}", {
+                        const payloadData = {
+                            mapel_id: {{ $mapel->id }},
+                            soal_id: this.currentSoal.id,
+                            jawaban_id: this.currentSoal.jawaban_terpilih,
+                            is_ragu: this.currentSoal.is_ragu
+                        };
+
+                        await fetch("{{ route('ujian.simpan') }}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
+                            },
+                            body: JSON.stringify({
+                                payload: this.encrypt(payloadData)
+                            })
                         });
 
-                        Swal.fire({
-                            title: 'AKUN DIBLOKIR!',
-                            text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...',
-                            icon: 'error',
-                            showConfirmButton: false,
-                            allowOutsideClick: false
-                        });
-
-                        // 2. Submit Logout Form (POST)
-                        setTimeout(() => { document.getElementById('logout-form').submit(); }, 2500);
-                    } catch (e) {
-                        document.getElementById('logout-form').submit();
+                        // Fake delay sedikit biar animasi "Saving" kelihatan
+                        setTimeout(() => { this.isSaving = false; }, 400);
+                    } catch (e) { 
+                        this.isSaving = false;
                     }
                 },
 
-                logoutConfirm() {
-                    Swal.fire({
-                        title: 'Keluar Ujian?',
-                        text: "Ujian Anda masih berlangsung. Yakin ingin keluar?",
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Ya, Keluar',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#ef4444'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            localStorage.removeItem('cheat_count');
-                            document.getElementById('logout-form').submit();
-                        }
-                    });
+                async handleSelect(db_id) { 
+                    this.currentSoal.jawaban_terpilih = db_id; 
+                    await this.saveToDb();
+                },
+
+                async toggleRagu() { 
+                    this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
+                    await this.saveToDb();
                 },
 
                 startTimer() { 
@@ -268,7 +239,7 @@
                         if(this.timeLeft > 0) this.timeLeft--; 
                         else {
                             clearInterval(timer);
-                            this.forceSubmit();
+                            this.submitUjian();
                         }
                     }, 1000); 
                 },
@@ -284,36 +255,8 @@
                 prev() { if(this.currentIndex > 0) { this.currentIndex--; this.refreshMath(); } },
                 setFont(size) { this.fontSize = size; },
 
-                async handleSelect(db_id) { 
-                    this.currentSoal.jawaban_terpilih = db_id; 
-                    await this.saveToDb();
-                },
-
-                async toggleRagu() { 
-                    this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
-                    await this.saveToDb();
-                },
-
-                async saveToDb() {
-                    try {
-                        await fetch("{{ route('ujian.simpan') }}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify({
-                                mapel_id: {{ $mapel->id }},
-                                soal_id: this.currentSoal.id,
-                                jawaban_id: this.currentSoal.jawaban_terpilih,
-                                is_ragu: this.currentSoal.is_ragu
-                            })
-                        });
-                    } catch (e) { console.error("Sinkronisasi gagal"); }
-                },
-
                 getNavClass(soal, index) {
-                    if (this.currentIndex === index) return 'bg-sky-600 border-sky-600 text-white shadow-xl scale-110 z-10';
+                    if (this.currentIndex === index) return 'bg-sky-600 border-sky-600 text-white shadow-lg scale-110 z-10';
                     if (soal.is_ragu) return 'bg-amber-400 border-amber-400 text-white';
                     if (soal.jawaban_terpilih) return 'bg-sky-100 border-sky-100 text-sky-700';
                     return 'bg-white border-slate-100 text-slate-300';
@@ -322,36 +265,31 @@
                 confirmSelesai() {
                     Swal.fire({
                         title: 'Selesai Ujian?',
-                        text: "Pastikan semua soal telah terjawab.",
+                        text: "Jawaban yang sudah tersimpan tidak bisa diubah.",
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, Selesai',
-                        cancelButtonText: 'Batal',
                         confirmButtonColor: '#0ea5e9'
                     }).then((result) => {
-                        if (result.isConfirmed) {
-                            this.submitUjian();
-                        }
+                        if (result.isConfirmed) this.submitUjian();
                     });
                 },
 
-                forceSubmit() {
-                    Swal.fire({
-                        title: 'Waktu Habis!',
-                        text: 'Jawaban Anda tersimpan otomatis.',
-                        icon: 'warning',
-                        confirmButtonText: 'OK',
-                        allowOutsideClick: false
-                    }).then(() => { 
-                        this.submitUjian();
-                    });
-                },
-
-                // Gabungkan logika redirect ke satu fungsi agar konsisten
                 submitUjian() {
-                    localStorage.removeItem('cheat_count');
-                    // Tambahkan indikator loading jika perlu
                     window.location.href = "{{ route('ujian.selesai', ['id' => $mapel->id]) }}";
+                },
+
+                logoutConfirm() {
+                    Swal.fire({
+                        title: 'Keluar?',
+                        text: "Ujian masih berlangsung!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Keluar',
+                        confirmButtonColor: '#ef4444'
+                    }).then((result) => {
+                        if (result.isConfirmed) document.getElementById('logout-form').submit();
+                    });
                 },
 
                 refreshMath() { 

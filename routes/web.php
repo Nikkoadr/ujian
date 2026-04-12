@@ -43,7 +43,6 @@ Route::post('siswa/{id}/block', [SiswaController::class, 'toggleStatus'])->name(
 
 Route::resource('pengawas', PengawasController::class);
 Route::resource('mapel', MapelController::class);
-Route::resource('laporan', LaporanController::class);
 
 Route::prefix('soal')->name('soal.')->group(function () {
     Route::get('/mapel/{mapel_id}', [SoalController::class, 'index'])->name('index');
@@ -59,3 +58,4 @@ Route::prefix('soal')->name('soal.')->group(function () {
 Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');

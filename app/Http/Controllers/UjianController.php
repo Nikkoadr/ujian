@@ -96,11 +96,34 @@ class UjianController extends Controller
 
     public function simpan(Request $request)
     {
-        DB::table('ujian_progres')->updateOrInsert(
-            ['user_id' => Auth::id(), 'mapel_id' => $request->mapel_id, 'soal_id' => $request->soal_id],
-            ['jawaban_id' => $request->jawaban_id, 'is_ragu' => $request->is_ragu, 'updated_at' => now()]
-        );
-        return response()->json(['success' => true]);
+        try {
+            // 1. Dekode payload Base64
+            $payload = json_decode(base64_decode($request->payload), true);
+
+            // 2. Validasi sederhana memastikan data ada
+            if (!$payload) {
+                return response()->json(['success' => false, 'message' => 'Invalid payload'], 400);
+            }
+
+            // 3. Eksekusi ke database
+            DB::table('ujian_progres')->updateOrInsert(
+                [
+                    'user_id'  => Auth::id(),
+                    'mapel_id' => $payload['mapel_id'],
+                    'soal_id'  => $payload['soal_id']
+                ],
+                [
+                    'jawaban_id' => $payload['jawaban_id'],
+                    'is_ragu'    => $payload['is_ragu'] ?? false,
+                    'updated_at' => now()
+                ]
+            );
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            // Log error jika diperlukan: Log::error($e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Sync failed'], 500);
+        }
     }
 
     public function blokirSiswa(Request $request)
