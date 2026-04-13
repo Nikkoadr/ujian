@@ -8,6 +8,7 @@ use App\Models\Kelas;
 use App\Models\Mapel;
 use App\Exports\LaporanUjianExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Gate;
 
 class LaporanController extends Controller
 {
@@ -25,7 +26,13 @@ class LaporanController extends Controller
         // Memanggil fungsi privat agar tidak nulis query dua kali
         $results = $this->getFilteredData($request);
 
-        return view('laporan.index', compact('results', 'kelas', 'mapel', 'tanggal'));
+        if (Gate::allows('admin')) {
+            return view('laporan.index', compact('results', 'kelas', 'mapel', 'tanggal'));
+        }
+
+        if (Gate::allows('pengawas')) {
+            return view('laporan.index_mobile', compact('results', 'kelas', 'mapel', 'tanggal'));
+        }
     }
 
     public function exportExcel(Request $request)

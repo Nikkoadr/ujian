@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Mapel;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Gate;
 
 class TokenController extends Controller
 {
@@ -25,22 +26,34 @@ class TokenController extends Controller
      */
     public function index()
     {
-        $mapel = Mapel::select('token', 'updated_at')->first();
-
+        $mapel = Mapel::first();
         $token = $mapel ? $mapel->token : '------';
+        $secondsRemaining = 0;
+
         if ($mapel) {
             $lastUpdate = $mapel->updated_at->timestamp;
             $nextUpdate = $lastUpdate + 300;
-            $now = time();
+            $secondsRemaining = max(0, $nextUpdate - time());
 
-            $secondsRemaining = $nextUpdate - $now;
-
-            if ($secondsRemaining < 0) $secondsRemaining = 0;
-        } else {
-            $secondsRemaining = 300;
+            // Logika Auto-Update jika waktu habis (khusus untuk tampilan)
+            if ($secondsRemaining <= 0) {
+                $token = strtoupper(\Illuminate\Support\Str::random(6));
+                $mapel->update(['token' => $token, 'updated_at' => now()]);
+                $secondsRemaining = 300;
+            }
         }
 
-        return view('token', compact('token', 'secondsRemaining'));
+        // Pemisahan menggunakan Gate
+        if (Gate::allows('admin')) {
+            $mapels = Mapel::all();
+            return view('token', compact('mapels', 'token', 'secondsRemaining'));
+        }
+
+        if (Gate::allows('pengawas')) {
+            return view('token_mobile', compact('token', 'secondsRemaining'));
+        }
+
+        return abort(403, 'Akses Ditolak');
     }
 
     public function refreshToken(Request $request)

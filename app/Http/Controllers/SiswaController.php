@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Kelas;
 use App\Imports\SiswaImport;
+use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
+use Yajra\DataTables\Facades\DataTables;
 
 class SiswaController extends Controller
 {
@@ -28,19 +30,45 @@ class SiswaController extends Controller
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function index()
+    public function index(Request $request)
     {
-        $kelas = Kelas::with('tingkat', 'kompetensi_keahlian')->get();
+        $kelas = Kelas::orderBy('nama_kelas', 'asc')->get();
 
-        $siswas = Siswa::with([
-            'user',
-            'kelas.tingkat',
-            'kelas.kompetensi_keahlian'
-        ])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        if ($request->ajax()) {
+            $query = Siswa::with(['user', 'kelas']);
 
-        return view('siswa.index', compact('siswas', 'kelas'));
+            // Filter Status (Gunakan 'diblokir' sesuai logika toggleStatus Anda)
+            if ($request->filterStatus) {
+                $query->whereHas('user', function ($q) use ($request) {
+                    $q->where('status', $request->filterStatus);
+                });
+            }
+
+            // Filter Kelas
+            if ($request->filterKelas) {
+                $query->where('kelas_id', $request->filterKelas);
+            }
+
+            return DataTables::of($query)
+                ->addIndexColumn()
+                // Agar kotak pencarian bisa mencari nama di tabel users
+                ->filterColumn('user.nama', function ($query, $keyword) {
+                    $query->whereHas('user', function ($q) use ($keyword) {
+                        $q->where('nama', 'like', "%{$keyword}%");
+                    });
+                })
+                ->make(true);
+        }
+
+        if (Gate::allows('admin')) {
+            return view('siswa.index', compact('kelas'));
+        }
+
+        if (Gate::allows('pengawas')) {
+            return view('siswa.index_mobile', compact('kelas'));
+        }
+
+        return abort(403);
     }
 
     // Tambah Siswa (Admin Only)
@@ -146,9 +174,19 @@ class SiswaController extends Controller
         $siswa = Siswa::findOrFail($id);
         $user = $siswa->user;
 
+        // Logika switch status
         $user->status = ($user->status == 'aktif') ? 'diblokir' : 'aktif';
         $user->save();
 
+        // Jika dipanggil via AJAX (DataTable Mobile)
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Status ' . $user->nama . ' sekarang ' . $user->status
+            ]);
+        }
+
+        // Jika dipanggil via klik tombol biasa (Admin Desktop)
         return redirect()->back()->with('success', 'Status akun ' . $user->nama . ' berhasil diubah.');
     }
 

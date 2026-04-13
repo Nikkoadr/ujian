@@ -59,3 +59,4 @@ Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
+Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
