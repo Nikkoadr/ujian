@@ -10,7 +10,7 @@ use App\Models\User;
 use App\Models\Kelas;
 use App\Models\Pengawas;
 use Illuminate\Support\Facades\DB;
-
+use Termwind\Components\Raw;
 
 class HomeController extends Controller
 {
@@ -31,7 +31,7 @@ class HomeController extends Controller
      */
     public function index()
     {
-        if (Gate::any(['admin', 'guru', 'pengawas'])) {
+        if (Gate::allows('admin')) {
             // Mengambil total utama
             $totalSiswa = Siswa::count();
             $totalGuru = User::where('role_id', 2)->count(); // Asumsi role_id 2 adalah Guru
@@ -64,6 +64,9 @@ class HomeController extends Controller
             ];
 
             return view('home', $data);
+        }
+        if (Gate::any(['pengawas', 'guru'])) {
+            return redirect()->route('token.index');
         }
 
         if (Gate::allows('siswa')) {

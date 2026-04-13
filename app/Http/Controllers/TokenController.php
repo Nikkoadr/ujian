@@ -28,29 +28,32 @@ class TokenController extends Controller
     {
         $mapel = Mapel::first();
         $token = $mapel ? $mapel->token : '------';
+
         $secondsRemaining = 0;
+        $isStale = false;
 
         if ($mapel) {
             $lastUpdate = $mapel->updated_at->timestamp;
-            $nextUpdate = $lastUpdate + 300;
-            $secondsRemaining = max(0, $nextUpdate - time());
+            $nextUpdate = $lastUpdate + 300; // Interval 5 menit
+            $now = time();
 
-            // Logika Auto-Update jika waktu habis (khusus untuk tampilan)
+            // Gunakan max(0, ...) agar tidak mengirim angka negatif ke JS
+            $secondsRemaining = max(0, $nextUpdate - $now);
+
+            // Jika sisa waktu sudah 0, berarti sistem menunggu Cron Job bekerja
             if ($secondsRemaining <= 0) {
-                $token = strtoupper(\Illuminate\Support\Str::random(6));
-                $mapel->update(['token' => $token, 'updated_at' => now()]);
-                $secondsRemaining = 300;
+                $isStale = true;
             }
         }
 
-        // Pemisahan menggunakan Gate
+        // Pemisahan View berdasarkan Role
         if (Gate::allows('admin')) {
             $mapels = Mapel::all();
-            return view('token', compact('mapels', 'token', 'secondsRemaining'));
+            return view('token', compact('mapels', 'token', 'secondsRemaining', 'isStale'));
         }
 
         if (Gate::allows('pengawas')) {
-            return view('token_mobile', compact('token', 'secondsRemaining'));
+            return view('token_mobile', compact('token', 'secondsRemaining', 'isStale'));
         }
 
         return abort(403, 'Akses Ditolak');
@@ -58,17 +61,23 @@ class TokenController extends Controller
 
     public function refreshToken(Request $request)
     {
+        // Keamanan API Key
         if ($request->header('X-Api-Key') !== 'aja_kepo_ya') {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $newToken = strtoupper(Str::random(6));
+        $newToken = strtoupper(\Illuminate\Support\Str::random(6));
 
-        Mapel::query()->update(['token' => $newToken]);
+        // Update semua record token dan paksa update timestamp
+        Mapel::query()->update([
+            'token' => $newToken,
+            'updated_at' => now()
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'new_token' => $newToken
+            'new_token' => $newToken,
+            'expiry' => 300 // Detik
         ]);
     }
 }

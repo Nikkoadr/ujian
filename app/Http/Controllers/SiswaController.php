@@ -34,44 +34,46 @@ class SiswaController extends Controller
     {
         $kelas = Kelas::orderBy('nama_kelas', 'asc')->get();
 
-        if ($request->ajax()) {
-            $query = Siswa::with(['user', 'kelas']);
-
-            // Filter Status (Gunakan 'diblokir' sesuai logika toggleStatus Anda)
-            if ($request->filterStatus) {
-                $query->whereHas('user', function ($q) use ($request) {
-                    $q->where('status', $request->filterStatus);
-                });
-            }
-
-            // Filter Kelas
-            if ($request->filterKelas) {
-                $query->where('kelas_id', $request->filterKelas);
-            }
-
-            return DataTables::of($query)
-                ->addIndexColumn()
-                // Agar kotak pencarian bisa mencari nama di tabel users
-                ->filterColumn('user.nama', function ($query, $keyword) {
-                    $query->whereHas('user', function ($q) use ($keyword) {
-                        $q->where('nama', 'like', "%{$keyword}%");
-                    });
-                })
-                ->make(true);
-        }
-
-        if (Gate::allows('admin')) {
-            return view('siswa.index', compact('kelas'));
-        }
-
+        // --- 1. LOGIKA KHUSUS PENGAWAS (Mobile - AJAX Mode) ---
         if (Gate::allows('pengawas')) {
+            if ($request->ajax()) {
+                $query = Siswa::with(['user', 'kelas']);
+
+                if ($request->filterStatus) {
+                    $query->whereHas('user', function ($q) use ($request) {
+                        $q->where('status', $request->filterStatus);
+                    });
+                }
+
+                if ($request->filterKelas) {
+                    $query->where('kelas_id', $request->filterKelas);
+                }
+
+                return DataTables::of($query)
+                    ->addIndexColumn()
+                    ->filterColumn('user.nama', function ($query, $keyword) {
+                        $query->whereHas('user', function ($q) use ($keyword) {
+                            $q->where('nama', 'like', "%{$keyword}%");
+                        });
+                    })
+                    ->make(true);
+            }
+
+            // View Mobile (Tanpa mengirim $siswas karena pakai AJAX)
             return view('siswa.index_mobile', compact('kelas'));
+        }
+
+        // --- 2. LOGIKA KHUSUS ADMIN (Web - Manual Looping Mode) ---
+        if (Gate::allows('admin')) {
+            // Ambil data secara manual untuk di-looping di Blade
+            $siswas = Siswa::with(['user', 'kelas'])->get();
+
+            return view('siswa.index', compact('kelas', 'siswas'));
         }
 
         return abort(403);
     }
 
-    // Tambah Siswa (Admin Only)
     public function store(Request $request)
     {
         $request->validate([

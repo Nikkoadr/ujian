@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800" rel="stylesheet" />
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -35,42 +35,60 @@
             <div class="flex items-center gap-3">
                 <img src="{{ asset('assets/img/logo.png') }}" class="w-7 h-7 sm:w-9 sm:h-9 object-contain">
                 <div class="leading-none hidden sm:block">
-                    <h1 class="text-sm sm:text-lg font-extrabold tracking-tight">CBT</h1>
+                    <h1 class="text-sm sm:text-lg font-extrabold tracking-tight">CBT - {{ $mapel->nama_mapel }}</h1>
                     <p class="text-[7px] sm:text-[9px] font-bold opacity-70 uppercase tracking-widest">Digital Assessment</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-2 sm:gap-4">
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/10">
-                    <div :class="isSaving ? 'bg-amber-400 animate-pulse' : (isOnline ? 'bg-emerald-400' : 'bg-red-400')" 
-                         class="w-2 h-2 rounded-full transition-colors"></div>
-                    <span class="text-[9px] font-black uppercase tracking-wider opacity-90 hidden xs:block" 
-                          x-text="isSaving ? 'Menyimpan...' : (isOnline ? 'Sinkron' : 'Offline')"></span>
+                
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300"
+                     :class="{
+                        'bg-red-500/20 border-red-400/30 text-red-200': !isOnline,
+                        'bg-amber-500/20 border-amber-400/30 text-amber-200': isOnline && isSaving,
+                        'bg-emerald-500/20 border-emerald-400/30 text-emerald-200': isOnline && !isSaving
+                     }">
+                    
+                    <span class="relative flex h-2 w-2">
+                        <span x-show="isSaving || !isOnline" class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                              :class="!isOnline ? 'bg-red-400' : 'bg-amber-400'"></span>
+                        
+                        <span class="relative inline-flex rounded-full h-2 w-2"
+                              :class="{
+                                'bg-red-500': !isOnline,
+                                'bg-amber-500': isOnline && isSaving,
+                                'bg-emerald-500': isOnline && !isSaving
+                              }"></span>
+                    </span>
+
+                    <span class="text-[9px] font-black uppercase tracking-widest">
+                        <span x-show="!isOnline">Terputus</span>
+                        <span x-show="isOnline && isSaving">Menyimpan</span>
+                        <span x-show="isOnline && !isSaving">Terhubung</span>
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-500/20 border border-red-400/30">
+                    <span class="text-sm font-bold text-white" x-text="pelanggaran + '/' + maxPelanggaran"></span>
                 </div>
 
                 <div class="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-xl border border-white/10">
-                    <span x-text="formatTime(timeLeft)" class="font-mono font-bold text-sm sm:text-lg tracking-tighter"></span>
+                    <span x-text="formatTime(timeLeft)" 
+                          :class="timeLeft < 300 ? 'text-red-400 animate-pulse' : 'text-white'"
+                          class="font-mono font-bold text-sm sm:text-lg tracking-tighter"></span>
                 </div>
             </div>
 
             <div class="relative" x-data="{ open: false }" @click.away="open = false">
-                <button @click="open = !open" class="flex items-center gap-2 bg-white/10 p-1 pr-3 rounded-full border border-white/20 hover:bg-white/20 transition-all">
+                <button @click="open = !open" class="flex items-center gap-2 bg-white/10 p-1 pr-3 rounded-full border border-white/20">
                     <div class="w-7 h-7 rounded-full bg-sky-500 flex items-center justify-center font-bold text-xs uppercase shadow-inner">
                         {{ substr(Auth::user()->nama, 0, 1) }}
                     </div>
                     <span class="text-xs font-bold hidden md:block">{{ Auth::user()->nama }}</span>
-                    <svg class="w-3 h-3 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
 
-                <div x-show="open" x-cloak 
-                     x-transition:enter="transition ease-out duration-100"
-                     class="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[110]">
-                    <div class="px-4 py-2 border-b border-slate-50 mb-1">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Siswa</p>
-                        <p class="text-xs font-black text-slate-700 truncate">{{ Auth::user()->nama }}</p>
-                    </div>
+                <div x-show="open" x-cloak class="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[110]">
                     <button @click="logoutConfirm()" class="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                         Keluar Ujian
                     </button>
                 </div>
@@ -78,8 +96,8 @@
         </div>
     </header>
 
-    <main class="flex-1 max-w-[1440px] w-full mx-auto p-0 sm:p-4 md:p-6 overflow-hidden flex flex-col md:flex-row gap-4 lg:gap-6">
-        <div class="flex-1 bg-white md:rounded-[2rem] shadow-sm border-b md:border border-slate-200 flex flex-col overflow-hidden relative z-10">
+    <main class="flex-1 max-w-[1440px] w-full mx-auto p-0 sm:p-4 md:p-6 overflow-hidden flex flex-col md:flex-row gap-4">
+        <div class="flex-1 bg-white md:rounded-[2rem] shadow-sm border border-slate-200 flex flex-col overflow-hidden relative z-10">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
                 <div class="flex items-center gap-3">
                     <span class="bg-sky-600 text-white px-3 py-1 rounded-lg font-black text-xs sm:text-sm" x-text="'SOAL ' + currentSoal.nomor"></span>
@@ -89,21 +107,17 @@
                         <button @click="setFont('large')" :class="fontSize == 'large' ? 'bg-sky-600 text-white' : 'bg-slate-100'" class="w-7 h-7 rounded-lg font-bold text-sm">A</button>
                     </div>
                 </div>
-                <button @click="showMobileNav = true" class="md:hidden px-4 py-2 bg-sky-50 text-sky-700 rounded-xl text-[10px] font-black border border-sky-100 uppercase">
-                    Peta Soal
-                </button>
+                <button @click="showMobileNav = true" class="md:hidden px-4 py-2 bg-sky-50 text-sky-700 rounded-xl text-[10px] font-black border border-sky-100 uppercase">Peta Soal</button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-5 sm:p-10 custom-scroll" :class="'font-size-' + fontSize">
                 <div class="max-w-3xl mx-auto">
                     <template x-if="currentSoal.gambar_soal">
-                        <div class="mb-6 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner text-center">
+                        <div class="mb-6 bg-slate-50 p-2 rounded-2xl border text-center">
                             <img :src="currentSoal.gambar_soal" class="max-w-full h-auto rounded-xl inline-block shadow-md">
                         </div>
                     </template>
-
                     <div class="text-slate-800 font-semibold leading-relaxed mb-8" x-html="currentSoal.pertanyaan"></div>
-
                     <div class="space-y-3">
                         <template x-for="opt in currentSoal.pilihan" :key="opt.db_id">
                             <label class="flex items-start gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white"
@@ -115,11 +129,6 @@
                                 </div>
                                 <div class="pt-1.5 flex-1">
                                     <div class="font-bold text-slate-700 text-xs sm:text-sm" x-html="opt.teks"></div>
-                                    <template x-if="opt.gambar">
-                                        <div class="mt-2">
-                                            <img :src="opt.gambar" class="max-w-full sm:w-48 h-auto rounded-lg border border-slate-100 shadow-sm">
-                                        </div>
-                                    </template>
                                 </div>
                             </label>
                         </template>
@@ -130,21 +139,28 @@
             <div class="px-4 py-4 border-t border-slate-100 bg-white flex items-center justify-between gap-2">
                 <button @click="prev()" :disabled="currentIndex === 0" class="flex-1 sm:flex-none px-5 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-bold text-xs disabled:opacity-20 uppercase">Kembali</button>
                 <button @click="toggleRagu()" class="flex-1 sm:flex-none px-8 py-3.5 rounded-2xl font-bold text-xs uppercase shadow-sm"
-                        :class="currentSoal.is_ragu ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 border border-amber-200'">
-                    Ragu
-                </button>
-                <button @click="next()" :disabled="currentIndex === listSoal.length - 1" class="flex-1 sm:flex-none px-5 py-3.5 bg-sky-600 text-white rounded-2xl font-bold text-xs shadow-lg uppercase">Lanjut</button>
+                        :class="currentSoal.is_ragu ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 border border-amber-200'">Ragu</button>
+                
+                <template x-if="currentIndex === listSoal.length - 1">
+                    <button @click="confirmSelesai()" 
+                            :disabled="timeLeft > 300"
+                            :class="timeLeft > 300 ? 'bg-slate-300 cursor-not-allowed opacity-50' : 'bg-red-500 text-white shadow-lg'"
+                            class="flex-1 sm:flex-none px-5 py-3.5 rounded-2xl font-bold text-xs uppercase transition-all">
+                        <span x-text="timeLeft > 300 ? 'Selesai (Kunci)' : 'Selesai'"></span>
+                    </button>
+                </template>
+                <template x-if="currentIndex !== listSoal.length - 1">
+                    <button @click="next()" class="flex-1 sm:flex-none px-5 py-3.5 bg-sky-600 text-white rounded-2xl font-bold text-xs shadow-lg uppercase">Lanjut</button>
+                </template>
             </div>
         </div>
 
-        <aside :class="showMobileNav ? 'translate-y-0' : 'translate-y-full md:translate-y-0'" 
-               class="fixed inset-0 z-[120] md:relative md:z-10 md:w-80 flex flex-col transition-transform duration-300 pointer-events-none md:pointer-events-auto">
+        <aside :class="showMobileNav ? 'translate-y-0' : 'translate-y-full md:translate-y-0'" class="fixed inset-0 z-[120] md:relative md:z-10 md:w-80 flex flex-col transition-transform duration-300 pointer-events-none md:pointer-events-auto">
             <div @click="showMobileNav = false" class="md:hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto"></div>
             <div class="mt-auto md:mt-0 bg-white md:rounded-[2rem] border border-slate-200 h-[75vh] md:h-full flex flex-col pointer-events-auto overflow-hidden rounded-t-[2.5rem] relative">
-                <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-                    <h2 class="font-extrabold text-slate-800 text-[10px] tracking-[0.2em] uppercase">Peta Navigasi</h2>
+                <div class="p-6 border-b flex justify-between items-center bg-slate-50/50">
+                    <h2 class="font-extrabold text-slate-800 text-[10px] tracking-[0.2em] uppercase">Peta Navigasi - {{ $mapel->nama_mapel }}</h2>
                 </div>
-                
                 <div class="flex-1 overflow-y-auto p-5 grid grid-cols-5 gap-3 custom-scroll">
                     <template x-for="(soal, index) in listSoal" :key="soal.id">
                         <button @click="currentIndex = index; showMobileNav = false; refreshMath()" 
@@ -154,19 +170,20 @@
                         </button>
                     </template>
                 </div>
-
                 <div class="p-6 bg-slate-50 border-t border-slate-100">
-                    <button @click="confirmSelesai()" class="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
-                        Selesai Ujian
+                    <button @click="confirmSelesai()" 
+                            :disabled="timeLeft > 300"
+                            :class="timeLeft > 300 ? 'bg-slate-300 cursor-not-allowed opacity-50' : 'bg-red-500 hover:bg-red-600 shadow-xl'"
+                            class="w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+                        <span x-show="timeLeft > 300">Selesai (Kunci)</span>
+                        <span x-show="timeLeft <= 300">Selesai Ujian</span>
                     </button>
                 </div>
             </div>
         </aside>
     </main>
 
-    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
-        @csrf
-    </form>
+    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">@csrf</form>
 
     <script>
         function examHandler() {
@@ -176,6 +193,9 @@
                 timeLeft: Math.floor({{ $timeLeft }}),
                 currentIndex: 0,
                 listSoal: @json($soal),
+                pelanggaran: parseInt(localStorage.getItem('cheat_count')) || 0,
+                maxPelanggaran: 3,
+                isBlocked: false,
                 isSaving: false,
                 isOnline: navigator.onLine,
 
@@ -184,20 +204,54 @@
                 init() {
                     this.startTimer();
                     this.refreshMath();
-                    
+                    this.setupProtection();
                     window.addEventListener('online',  () => this.isOnline = true);
                     window.addEventListener('offline', () => this.isOnline = false);
+                    if (this.pelanggaran >= this.maxPelanggaran) { this.blokirUser(); }
                 },
 
-                // Enkripsi Payload ke Base64 (Cocok dengan Controller)
-                encrypt(data) {
-                    return btoa(JSON.stringify(data));
+                setupProtection() {
+                    window.onblur = () => {
+                        if (!this.isBlocked) { this.handleViolation(); }
+                    };
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'hidden' && !this.isBlocked) {
+                            this.handleViolation();
+                        }
+                    });
                 },
+
+                handleViolation() {
+                    this.pelanggaran++;
+                    localStorage.setItem('cheat_count', this.pelanggaran);
+                    if (this.pelanggaran >= this.maxPelanggaran) {
+                        this.blokirUser();
+                    } else {
+                        Swal.fire({ title: 'Peringatan!', text: `Anda terdeteksi keluar dari halaman ujian (${this.pelanggaran}/${this.maxPelanggaran}). Jika mencapai limit, akun Anda akan diblokir!`, icon: 'warning' });
+                    }
+                },
+
+                async blokirUser() {
+                    this.isBlocked = true;
+                    localStorage.removeItem('cheat_count');
+                    Swal.fire({ title: 'AKUN DIBLOKIR!',
+                                text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...', 
+                                icon: 'error', showConfirmButton: false });
+                    try {
+                        await fetch("{{ route('ujian.blokir') }}", {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+                        });
+                    } finally {
+                        setTimeout(() => { document.getElementById('logout-form').submit(); }, 3000);
+                    }
+                },
+
+                encrypt(data) { return btoa(JSON.stringify(data)); },
 
                 async saveToDb() {
-                    if (!this.isOnline) return;
-                    this.isSaving = true;
-
+                    if (!this.isOnline || this.isBlocked) return;
+                    this.isSaving = true; // AKAN MENGUBAH INDIKATOR JADI KUNING
                     try {
                         const payloadData = {
                             mapel_id: {{ $mapel->id }},
@@ -205,22 +259,17 @@
                             jawaban_id: this.currentSoal.jawaban_terpilih,
                             is_ragu: this.currentSoal.is_ragu
                         };
-
                         await fetch("{{ route('ujian.simpan') }}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
-                            body: JSON.stringify({
-                                payload: this.encrypt(payloadData)
-                            })
+                            body: JSON.stringify({ payload: this.encrypt(payloadData) })
                         });
-
-                        // Fake delay sedikit biar animasi "Saving" kelihatan
-                        setTimeout(() => { this.isSaving = false; }, 400);
-                    } catch (e) { 
-                        this.isSaving = false;
+                    } finally {
+                        // Delay 400ms agar mata sempat melihat transisi kuning -> hijau
+                        setTimeout(() => { this.isSaving = false; }, 400); 
                     }
                 },
 
@@ -237,10 +286,7 @@
                 startTimer() { 
                     const timer = setInterval(() => { 
                         if(this.timeLeft > 0) this.timeLeft--; 
-                        else {
-                            clearInterval(timer);
-                            this.submitUjian();
-                        }
+                        else { clearInterval(timer); this.submitUjian(); }
                     }, 1000); 
                 },
 
@@ -265,38 +311,33 @@
                 confirmSelesai() {
                     Swal.fire({
                         title: 'Selesai Ujian?',
-                        text: "Jawaban yang sudah tersimpan tidak bisa diubah.",
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, Selesai',
                         confirmButtonColor: '#0ea5e9'
-                    }).then((result) => {
-                        if (result.isConfirmed) this.submitUjian();
-                    });
+                    }).then((result) => { if (result.isConfirmed) this.submitUjian(); });
                 },
 
                 submitUjian() {
+                    localStorage.removeItem('cheat_count');
                     window.location.href = "{{ route('ujian.selesai', ['id' => $mapel->id]) }}";
                 },
 
                 logoutConfirm() {
                     Swal.fire({
                         title: 'Keluar?',
-                        text: "Ujian masih berlangsung!",
                         icon: 'warning',
                         showCancelButton: true,
-                        confirmButtonText: 'Keluar',
                         confirmButtonColor: '#ef4444'
                     }).then((result) => {
-                        if (result.isConfirmed) document.getElementById('logout-form').submit();
+                        if (result.isConfirmed) {
+                            localStorage.removeItem('cheat_count');
+                            document.getElementById('logout-form').submit();
+                        }
                     });
                 },
 
-                refreshMath() { 
-                    this.$nextTick(() => { 
-                        if(window.MathJax) MathJax.typeset(); 
-                    }); 
-                }
+                refreshMath() { this.$nextTick(() => { if(window.MathJax) MathJax.typeset(); }); }
             }
         }
     </script>

@@ -93,7 +93,7 @@ class MapelController extends Controller
             'nama_mapel' => 'required|string|max:255',
             'durasi' => 'required',
             'tingkat_id' => 'required|exists:tingkat,id',
-            'kompetensi_keahlian_id' => 'required|exists:kompetensi_keahlian,id',
+            'kompetensi_keahlian_id' => 'nullable|exists:kompetensi_keahlian,id',
             'status' => 'required|in:aktif,nonaktif'
         ]);
 

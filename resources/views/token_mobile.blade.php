@@ -3,14 +3,10 @@
 
 @push('styles')
 <style>
-    /* Font khusus untuk Token agar terlihat techy */
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap');
     
-    .token-font {
-        font-family: 'JetBrains Mono', monospace;
-    }
+    .token-font { font-family: 'JetBrains Mono', monospace; }
 
-    /* Animasi halus untuk denyut nadi saat waktu hampir habis */
     @keyframes pulse-red {
         0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
         70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
@@ -66,7 +62,7 @@
         <div class="flex gap-3">
             <i class="fa-solid fa-circle-info text-indigo-500 mt-0.5"></i>
             <p class="text-[11px] text-indigo-900/70 leading-relaxed font-medium">
-                Token diperbarui secara otomatis tiap sesi. Jika token tidak muncul atau tidak bisa digunakan, pastikan pengaturan waktu di HP Anda diset ke <strong>Otomatis</strong>.
+                Token diperbarui secara otomatis tiap 5 menit. Jika waktu habis dan token belum berubah, harap tunggu sejenak.
             </p>
         </div>
     </div>
@@ -76,14 +72,27 @@
 @push('scripts')
 <script>
     let timeLeft = {{ $secondsRemaining }};
+    let isStale = {{ $isStale ? 'true' : 'false' }};
+    let refreshAttempted = false;
+
     const timerText = document.getElementById('timer');
     const timerCont = document.getElementById('timer-container');
     const timerIcon = document.getElementById('timer-icon');
 
     function update() {
-        if(timeLeft <= 0) { 
-            timerText.innerText = "REFRESH...";
-            window.location.reload(); 
+        // Logic jika waktu habis atau data memang sudah stale dari server
+        if(timeLeft <= 0 || isStale) { 
+            timerText.innerText = "MENUNGGU...";
+            timerCont.classList.add('timer-urgent');
+            
+            // CEGAH INFINITE REFRESH: 
+            // Jika sudah mencoba refresh, jangan panggil reload() lagi sampai 10 detik kemudian
+            if(!refreshAttempted) {
+                refreshAttempted = true;
+                setTimeout(() => {
+                    window.location.reload(); 
+                }, 10000); // Tunggu 10 detik sebelum refresh halaman
+            }
             return; 
         }
 
@@ -92,17 +101,18 @@
         
         timerText.innerText = `${min}:${sec}`;
 
-        // Efek visual jika waktu kurang dari 60 detik (Urgent)
+        // Masuk zona urgent (1 menit terakhir)
         if(timeLeft < 60) {
             timerCont.classList.add('timer-urgent');
             timerIcon.classList.replace('text-indigo-500', 'text-red-500');
-            timerIcon.classList.add('fa-spin-pulse');
+            if(!timerIcon.classList.contains('fa-spin-pulse')) {
+                timerIcon.classList.add('fa-spin-pulse');
+            }
         }
 
         timeLeft--;
     }
 
-    // Fungsi Copy to Clipboard
     function copyToken() {
         const token = "{{ $token }}";
         navigator.clipboard.writeText(token).then(() => {
@@ -120,6 +130,7 @@
         });
     }
 
+    // Jalankan Timer
     setInterval(update, 1000);
     update();
 </script>
