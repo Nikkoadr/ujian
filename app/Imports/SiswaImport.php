@@ -14,19 +14,25 @@ class SiswaImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        // Gunakan Transaction agar jika satu baris gagal, semua dibatalkan
         return DB::transaction(function () use ($row) {
-            // 1. Buat User
+            $jkInput = strtoupper($row['jenis_kelamin']);
+            $jenisKelamin = match ($jkInput) {
+                'L' => 'laki-laki',
+                'P' => 'perempuan',
+                default => null,
+            };
+
             $user = User::create([
                 'nama'          => $row['nama'],
-                'jenis_kelamin' => strtoupper($row['jenis_kelamin']),
+                'jenis_kelamin' => $jenisKelamin,
                 'email'         => $row['email'],
                 'password'      => Hash::make($row['password']),
-                'role_id'          => '3',
+                'role_id'       => '3',
                 'status'        => 'aktif',
             ]);
 
             $kelas = Kelas::where('nama_kelas', $row['kelas'])->first();
+
             return new Siswa([
                 'user_id'  => $user->id,
                 'kelas_id' => $kelas ? $kelas->id : null,

@@ -12,9 +12,6 @@
             <a href="{{ route('laporan.export', request()->all()) }}" class="btn btn-sm btn-success shadow-sm">
                 <i class="fas fa-file-excel fa-sm text-white-50 mr-1"></i> Download Excel
             </a>
-            <a href="{{ route('laporan.index') }}" class="btn btn-sm btn-light border shadow-sm">
-                <i class="fas fa-sync fa-sm mr-1"></i> Refresh
-            </a>
         </div>
     </div>
 

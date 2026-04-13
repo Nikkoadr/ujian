@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Kelas;
+use App\Models\Pengawas;
 use Illuminate\Support\Facades\DB;
 
 
@@ -34,7 +35,7 @@ class HomeController extends Controller
             // Mengambil total utama
             $totalSiswa = Siswa::count();
             $totalGuru = User::where('role_id', 2)->count(); // Asumsi role_id 2 adalah Guru
-            $totalPengawas = User::where('role_id', 4)->count(); // Asumsi role_id 4 adalah Pengawas
+            $totalPengawas = Pengawas::count(); // Asumsi role_id 4 adalah Pengawas
             $totalUser = User::count();
 
             // Mengambil status user dalam satu kali query untuk efisiensi (opsional, tapi bagus untuk skala besar)

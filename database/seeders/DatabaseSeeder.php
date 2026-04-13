@@ -21,9 +21,9 @@ class DatabaseSeeder extends Seeder
             Kompetensi_keahlian_seed::class,
             TingkatSeeder::class,
             KelasSeeder::class,
-            SiswaSeeder::class,
-            MapelSeeder::class,
-                
+            //SiswaSeeder::class,
+            //MapelSeeder::class,
+
         ]);
     }
 }

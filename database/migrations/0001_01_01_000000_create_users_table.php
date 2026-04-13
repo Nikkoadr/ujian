@@ -17,6 +17,8 @@ return new class extends Migration
             $table->enum('status', ['aktif', 'tidak_aktif', 'diblokir'])->default('aktif');
             $table->string('nama');
             $table->enum('jenis_kelamin', ['laki-laki', 'perempuan'])->default('laki-laki');
+            $table->string('foto')->nullable();
+            $table->date('tanggal_lahir')->nullable();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
