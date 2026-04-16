@@ -1,89 +1,50 @@
-FROM dunglas/frankenphp:latest
+# STAGE 1: Build Assets (Node.js)
+FROM node:20-alpine AS asset-builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-# =========================
-# SYSTEM DEPENDENCIES
-# =========================
+# STAGE 2: PHP Base & Dependencies
+FROM dunglas/frankenphp:1-php8.3 AS runner
+
+# Install System Dependencies
 RUN apt-get update && apt-get install -y \
-    libzip-dev zip unzip \
-    libpng-dev libjpeg-dev libfreetype6-dev \
-    libonig-dev libxml2-dev libicu-dev \
-    libmagickwand-dev \
-    git curl \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
+    libzip-dev zip unzip libpng-dev libjpeg-dev libfreetype6-dev \
+    libonig-dev libxml2-dev libicu-dev libmagickwand-dev \
+    git curl --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# =========================
-# PHP EXTENSIONS (CORE - PASTI AMAN)
-# =========================
-RUN docker-php-ext-install \
-    pdo \
-    pdo_mysql \
-    mysqli \
-    mbstring \
-    bcmath \
-    zip \
-    exif
+# Install PHP Extensions
+RUN docker-php-ext-install pdo pdo_mysql mysqli mbstring bcmath zip exif pcntl sockets xml soap intl
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && docker-php-ext-install gd
+RUN pecl install redis imagick && docker-php-ext-enable redis imagick
 
-# =========================
-# PHP EXTENSIONS (UNTUK OCTANE)
-# =========================
-RUN docker-php-ext-install pcntl
-
-# =========================
-# GD (IMAGE PROCESSING - DIPISAH)
-# =========================
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install gd
-
-# =========================
-# OPTIONAL (AMAN)
-# =========================
-RUN docker-php-ext-install sockets
-
-# =========================
-# XML & SOAP
-# =========================
-RUN docker-php-ext-install xml soap
-
-# =========================
-# INTL (OPSIONAL - JANGAN GAGALIN BUILD)
-# =========================
-RUN docker-php-ext-install intl || true
-
-# =========================
-# PECL EXTENSIONS
-# =========================
-RUN pecl install redis imagick \
-    && docker-php-ext-enable redis imagick
-
-# =========================
-# COMPOSER
-# =========================
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# =========================
-# APP SETUP
-# =========================
 WORKDIR /app
+
+# Copy dependency files first (untuk optimasi cache layer)
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+# Copy seluruh project
 COPY . .
 
-# Install Laravel dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Copy hasil build frontend dari STAGE 1
+COPY --from=asset-builder /app/public/build ./public/build
 
-# Frontend build (optional)
-RUN npm install && npm run build || echo "skip frontend build"
+# Finalisasi Composer (Autoload & Scripts)
+RUN composer dump-autoload --optimize --no-dev
 
-# Permission fix
+# Set Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
-# =========================
-# PORT
-# =========================
 EXPOSE 8000
 
-# =========================
-# START OCTANE
-# =========================
-CMD ["sh", "-c", "php artisan optimize:clear || true && php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=4 --task-workers=2 --max-requests=500"]
+# Jalankan Octane dengan setting agresif untuk 2000 user
+# Menggunakan 'auto' pada workers akan menyesuaikan dengan CPU core VM Proxmox Anda
+CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto"]

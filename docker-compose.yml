@@ -2,22 +2,32 @@ version: "3.9"
 
 services:
   app:
-    build: .
+    # Menggunakan image yang nanti di-push ke Docker Hub
+    image: nikkoadr/ujian:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: ujian
     restart: unless-stopped
     ports:
       - "8000:8000"
-    environment:
-      APP_ENV: production
-      APP_DEBUG: "false"
-      OCTANE_SERVER: frankenphp
 
-      DB_CONNECTION: mysql
-      DB_HOST: host.docker.internal
-      DB_PORT: 3306
-      DB_DATABASE: ujian
-      DB_USERNAME: root
-      DB_PASSWORD: ""
+    # Gunakan env_file agar tidak hardcode kredensial di sini
+    env_file:
+      - .env
+
+    # Tambahkan healthcheck untuk memastikan Octane benar-benar siap
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # Penting: Di Kubernetes kita pakai Ceph, di lokal pakai bind mount
+    volumes:
+      - ./storage:/app/storage
+      # Jika menggunakan Octane, folder bootstrap/cache juga harus writable
+      - ./bootstrap/cache:/app/bootstrap/cache
 
 networks:
   ujian-net:

@@ -1,4 +1,27 @@
-node_modules
-vendor
-.git
+# Dependency directories
+node_modules/
+vendor/
+
+# Laravel files & folders
 .env
+.env.*
+storage/*.key
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*.log
+bootstrap/cache/*
+
+# Build tools & Git
+.git/
+.github/
+.gitignore
+.editorconfig
+.styleci.yml
+phpunit.xml
+tests/
+
+# Docker specific
+Dockerfile
+docker-compose.yml
+.dockerignore
