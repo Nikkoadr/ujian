@@ -47,4 +47,7 @@ EXPOSE 8000
 
 # Jalankan Octane dengan setting agresif untuk 2000 user
 # Menggunakan 'auto' pada workers akan menyesuaikan dengan CPU core VM Proxmox Anda
-CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
