@@ -1,50 +1,68 @@
-# STAGE 1: Build Assets (Node.js)
+# =========================
+# STAGE 1: Build Frontend
+# =========================
 FROM node:20-alpine AS asset-builder
+
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
+
 COPY . .
 RUN npm run build
 
-# STAGE 2: PHP Base & Dependencies
-FROM dunglas/frankenphp:1-php8.3 AS runner
 
-# Install System Dependencies
+# =========================
+# STAGE 2: PHP + Laravel
+# =========================
+FROM dunglas/frankenphp:1-php8.3
+
+# Install dependency system
 RUN apt-get update && apt-get install -y \
-    libzip-dev zip unzip libpng-dev libjpeg-dev libfreetype6-dev \
-    libonig-dev libxml2-dev libicu-dev libmagickwand-dev \
-    git curl --no-install-recommends \
+    libzip-dev zip unzip \
+    libpng-dev libjpeg-dev libfreetype6-dev \
+    libonig-dev libxml2-dev libicu-dev \
+    libmagickwand-dev \
+    git curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP Extensions
-RUN docker-php-ext-install pdo pdo_mysql mysqli mbstring bcmath zip exif pcntl sockets xml soap intl
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && docker-php-ext-install gd
-RUN pecl install redis imagick && docker-php-ext-enable redis imagick
+# Install PHP extensions
+RUN docker-php-ext-install \
+    pdo pdo_mysql mysqli \
+    mbstring bcmath zip exif pcntl \
+    sockets xml intl
 
-# Install Composer
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
+
+RUN pecl install redis imagick \
+    && docker-php-ext-enable redis imagick
+
+# Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Copy dependency files first (untuk optimasi cache layer)
+# Install dependency Laravel
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+RUN composer install --no-dev --prefer-dist --no-scripts --no-autoloader
 
-# Copy seluruh project
+# Copy project
 COPY . .
 
-# Copy hasil build frontend dari STAGE 1
+# Copy hasil build frontend
 COPY --from=asset-builder /app/public/build ./public/build
 
-# Finalisasi Composer (Autoload & Scripts)
+# Optimasi Laravel
 RUN composer dump-autoload --optimize --no-dev
 
-# Set Permissions
-RUN chown -R www-data:www-data storage bootstrap/cache && \
-    chmod -R 775 storage bootstrap/cache
+# Permission (penting untuk K8s)
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+# Storage link (WAJIB)
+RUN php artisan storage:link || true
 
 EXPOSE 8000
 
-# Jalankan Octane dengan setting agresif untuk 2000 user
-# Menggunakan 'auto' pada workers akan menyesuaikan dengan CPU core VM Proxmox Anda
-CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto"]
+# Start Octane (AUTO CPU SCALE)
+CMD ["sh", "-c", "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto --max-requests=1000"]

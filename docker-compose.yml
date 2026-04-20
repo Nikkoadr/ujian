@@ -2,32 +2,32 @@ version: "3.9"
 
 services:
   app:
-    # Menggunakan image yang nanti di-push ke Docker Hub
     image: nikkoadr/ujian:latest
     build:
       context: .
       dockerfile: Dockerfile
     container_name: ujian
     restart: unless-stopped
+
     ports:
       - "8000:8000"
 
-    # Gunakan env_file agar tidak hardcode kredensial di sini
     env_file:
       - .env
 
-    # Tambahkan healthcheck untuk memastikan Octane benar-benar siap
+    volumes:
+      # hanya public storage (sesuai K8s)
+      - ./storage/app/public:/app/storage/app/public
+      - ./bootstrap/cache:/app/bootstrap/cache
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
       interval: 30s
       timeout: 10s
       retries: 3
 
-    # Penting: Di Kubernetes kita pakai Ceph, di lokal pakai bind mount
-    volumes:
-      - ./storage:/app/storage
-      # Jika menggunakan Octane, folder bootstrap/cache juga harus writable
-      - ./bootstrap/cache:/app/bootstrap/cache
+    networks:
+      - ujian-net
 
 networks:
   ujian-net:
