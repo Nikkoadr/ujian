@@ -64,5 +64,14 @@ RUN php artisan storage:link || true
 
 EXPOSE 8000
 
+<<<<<<< HEAD
 # Start Octane (AUTO CPU SCALE)
 CMD ["sh", "-c", "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto --max-requests=1000"]
+=======
+# Jalankan Octane dengan setting agresif untuk 2000 user
+# Menggunakan 'auto' pada workers akan menyesuaikan dengan CPU core VM Proxmox Anda
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+>>>>>>> cc115c52033e15d154d258000117e2bcb5122d94

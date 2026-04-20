@@ -13,6 +13,7 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\KelasController;
 use App\Http\Controllers\TokenController;
 
+Route::get('/up', fn() => response()->json(['status' => 'ok']));
 Route::get('/', function () {
     return view('welcome');
 });
