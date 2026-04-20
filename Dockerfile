@@ -59,9 +59,6 @@ RUN composer dump-autoload --optimize --no-dev
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Storage link (WAJIB)
-RUN php artisan storage:link || true
-
 EXPOSE 8000
 
 # Jalankan Octane dengan setting agresif untuk 2000 user
