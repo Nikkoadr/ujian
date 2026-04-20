@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {{-- Dinamik: Mengambil nama sekolah dari DB/Config --}}
-    <title>CBT Portal | {{ $school_name ?? config('app.name', 'Nama Sekolah') }}</title>
+    <title>CBT Portal | {{ $school_name ?? config('app.name', 'SMK Muhammadiyah Kandanghaur') }}</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700" rel="stylesheet" />
@@ -152,16 +152,16 @@
             {{-- Statistik Dinamik (Contoh pengambilan dari DB) --}}
             <section class="mt-32 grid grid-cols-2 md:grid-cols-4 gap-8 py-12 border-y border-slate-100 dark:border-slate-800">
                 <div class="text-center">
-                    <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">{{ $total_students ?? '0' }}</p>
+                    <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">{{ $siswaCount ?? '0' }}</p>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Siswa Terdaftar</p>
                 </div>
                 <div class="text-center">
-                    <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">{{ $total_subjects ?? '0' }}</p>
+                    <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">{{ $mapelCount ?? '0' }}</p>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Mata Pelajaran</p>
                 </div>
                 <div class="text-center">
-                    <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">{{ $total_exams ?? '0' }}</p>
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Ujian Selesai</p>
+                    <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">{{ $kelasCount ?? '0' }}</p>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Kelas</p>
                 </div>
                 <div class="text-center">
                     <p class="text-3xl font-bold text-brand-600 dark:text-white mb-1">Active</p>

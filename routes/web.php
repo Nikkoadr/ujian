@@ -14,8 +14,12 @@ use App\Http\Controllers\KelasController;
 use App\Http\Controllers\TokenController;
 
 Route::get('/up', fn() => response()->json(['status' => 'ok']));
+
 Route::get('/', function () {
-    return view('welcome');
+    $siswaCount = \App\Models\Siswa::count();
+    $mapelCount = \App\Models\Mapel::count();
+    $kelasCount = \App\Models\Kelas::count();
+    return view('welcome', compact('siswaCount', 'mapelCount', 'kelasCount'));
 });
 
 Route::get('/info', function () {
