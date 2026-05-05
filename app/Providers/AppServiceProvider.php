@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL; // 1. Tambahkan import ini di atas
 use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,5 +34,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('siswa', function (User $user) {
             return $user->role_id == 3;
         });
+
+        if (config('app.env') !== 'local') {
+            URL::forceScheme('https');
+        }
     }
 }
