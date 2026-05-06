@@ -211,7 +211,7 @@
                     </div>
                     <div class="form-group">
                         <label class="small font-weight-bold">Kompetensi Keahlian</label>
-                        <select name="kompetensi_keahlian_id" class="form-control @error('kompetensi_keahlian_id') is-invalid @enderror" required>
+                        <select name="kompetensi_keahlian_id" class="form-control @error('kompetensi_keahlian_id') is-invalid @enderror">
                             <option value="">Pilih Kompetensi Keahlian</option>
                             @foreach($kompetensi_keahlian as $keahlian)
                                 <option value="{{ $keahlian->id }}" {{ old('kompetensi_keahlian_id') == $keahlian->id ? 'selected' : '' }}>{{ $keahlian->nama_kompetensi }}</option>

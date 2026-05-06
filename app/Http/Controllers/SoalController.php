@@ -33,7 +33,7 @@ class SoalController extends Controller
         $soals = Soal::with('jawaban')
             ->where('mapel_id', $mapel_id)
             ->latest()
-            ->paginate(20);
+            ->paginate(100);
         return view('soal.index', compact('mapel', 'soals'));
     }
 

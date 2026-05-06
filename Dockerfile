@@ -39,10 +39,12 @@ RUN pecl install redis imagick \
     
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
-RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/custom-limits.ini \
+RUN echo "memory_limit=1024M" > /usr/local/etc/php/conf.d/custom-limits.ini \
     && echo "upload_max_filesize=50M" >> /usr/local/etc/php/conf.d/custom-limits.ini \
     && echo "post_max_size=60M" >> /usr/local/etc/php/conf.d/custom-limits.ini \
-    && echo "max_execution_time=300" >> /usr/local/etc/php/conf.d/custom-limits.ini
+    && echo "max_execution_time=300" >> /usr/local/etc/php/conf.d/custom-limits.ini \
+    && echo "max_input_time=300" >> /usr/local/etc/php/conf.d/custom-limits.ini \
+    && echo "max_file_uploads=100" >> /usr/local/etc/php/conf.d/custom-limits.ini
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
