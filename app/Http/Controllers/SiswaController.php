@@ -176,9 +176,18 @@ class SiswaController extends Controller
         $siswa = Siswa::findOrFail($id);
         $user = $siswa->user;
 
+        $sebelum = $user->status; // simpan status lama
+
         // Logika switch status
         $user->status = ($user->status == 'aktif') ? 'diblokir' : 'aktif';
         $user->save();
+
+        // Reset pelanggaran jika status berubah dari diblokir menjadi aktif
+        if ($sebelum == 'diblokir' && $user->status == 'aktif') {
+            DB::table('ujian_partisipasi')
+                ->where('user_id', $user->id)
+                ->update(['pelanggaran' => 0]);
+        }
 
         // Jika dipanggil via AJAX (DataTable Mobile)
         if (request()->ajax()) {

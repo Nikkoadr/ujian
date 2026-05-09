@@ -28,8 +28,6 @@ class UjianController extends Controller
      */
     public function index($id)
     {
-        $setting_tombol_selesai = 30000; // 5 menit dalam detik
-        $setting_anti_nyontek = false; // Aktifkan fitur anti-nyontek
         $user = Auth::user();
 
         if ($user->status === 'diblokir') {
@@ -93,7 +91,7 @@ class UjianController extends Controller
                     ])
                 ];
             });
-        return view('ujian.index', compact('mapel', 'soal', 'timeLeft', 'setting_tombol_selesai', 'setting_anti_nyontek'));
+        return view('ujian.index', compact('mapel', 'soal', 'timeLeft'));
     }
 
     public function simpan(Request $request)

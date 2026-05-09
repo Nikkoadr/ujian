@@ -65,3 +65,8 @@ Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
 Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
+
+
+Route::post('/ujian/tambah-pelanggaran', [UjianController::class, 'tambahPelanggaran'])->name('ujian.tambah_pelanggaran');
+Route::get('/ujian/get-pelanggaran', [UjianController::class, 'getPelanggaran'])->name('ujian.get_pelanggaran');
+Route::get('/ujian/sisa-waktu', [UjianController::class, 'getSisaWaktu'])->name('ujian.sisa_waktu');
