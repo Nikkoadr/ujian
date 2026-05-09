@@ -1,5 +1,7 @@
 @extends('layouts.app')
-
+@section('title')
+    Manajemen Bank Soal - {{ $mapel->nama_mapel ?? $mapel->nama }}
+@endsection
 @section('content')
 <style>
     /* Global Soft UI */

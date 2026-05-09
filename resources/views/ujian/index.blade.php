@@ -27,8 +27,7 @@
       x-init="init()"
       @contextmenu.prevent
       @keydown.f12.prevent
-      @keydown.ctrl.u.prevent
-      @keydown.ctrl.c.prevent>
+      @keydown.ctrl.u.prevent>
 
     <header class="bg-sky-800 text-white shadow-md z-[100] relative">
         <div class="max-w-[1440px] mx-auto px-4 h-14 sm:h-20 flex items-center justify-between">
@@ -41,26 +40,18 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-4">
-                
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300"
                      :class="{
                         'bg-red-500/20 border-red-400/30 text-red-200': !isOnline,
                         'bg-amber-500/20 border-amber-400/30 text-amber-200': isOnline && isSaving,
                         'bg-emerald-500/20 border-emerald-400/30 text-emerald-200': isOnline && !isSaving
                      }">
-                    
                     <span class="relative flex h-2 w-2">
                         <span x-show="isSaving || !isOnline" class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
                               :class="!isOnline ? 'bg-red-400' : 'bg-amber-400'"></span>
-                        
                         <span class="relative inline-flex rounded-full h-2 w-2"
-                              :class="{
-                                'bg-red-500': !isOnline,
-                                'bg-amber-500': isOnline && isSaving,
-                                'bg-emerald-500': isOnline && !isSaving
-                              }"></span>
+                              :class="{ 'bg-red-500': !isOnline, 'bg-amber-500': isOnline && isSaving, 'bg-emerald-500': isOnline && !isSaving }"></span>
                     </span>
-
                     <span class="text-[9px] font-black uppercase tracking-widest">
                         <span x-show="!isOnline">Terputus</span>
                         <span x-show="isOnline && isSaving">Menyimpan</span>
@@ -76,12 +67,7 @@
 
                 <div class="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-xl border border-white/10">
                     <span x-text="formatTime(timeLeft)" 
-                          :class="
-                                    settingTombolSelesai !== false &&
-                                    timeLeft < settingTombolSelesai
-                                        ? 'text-red-400 animate-pulse'
-                                        : 'text-white'
-                                "
+                          :class="settingTombolSelesai !== false && timeLeft < settingTombolSelesai ? 'text-red-400 animate-pulse' : 'text-white'"
                           class="font-mono font-bold text-sm sm:text-lg tracking-tighter"></span>
                 </div>
             </div>
@@ -93,7 +79,6 @@
                     </div>
                     <span class="text-xs font-bold hidden md:block">{{ Auth::user()->nama }}</span>
                 </button>
-
                 <div x-show="open" x-cloak class="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[110]">
                     <button @click="logoutConfirm()" class="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2">
                         Keluar Ujian
@@ -117,7 +102,7 @@
                 <button @click="showMobileNav = true" class="md:hidden px-4 py-2 bg-sky-50 text-sky-700 rounded-xl text-[10px] font-black border border-sky-100 uppercase">Peta Soal</button>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-5 sm:p-10 custom-scroll" :class="'font-size-' + fontSize">
+            <div id="exam-content" class="flex-1 overflow-y-auto p-5 sm:p-10 custom-scroll" :class="'font-size-' + fontSize">
                 <div class="max-w-3xl mx-auto">
                     <template x-if="currentSoal.gambar_soal">
                         <div class="mb-6 bg-slate-50 p-2 rounded-2xl border text-center">
@@ -151,16 +136,9 @@
                 <template x-if="currentIndex === listSoal.length - 1">
                     <button @click="confirmSelesai()" 
                         :disabled="settingTombolSelesai !== false && timeLeft > settingTombolSelesai"
-                        :class="settingTombolSelesai !== false && timeLeft > settingTombolSelesai
-                            ? 'bg-slate-300 cursor-not-allowed opacity-50'
-                            : 'bg-red-500 text-white shadow-lg'"
+                        :class="settingTombolSelesai !== false && timeLeft > settingTombolSelesai ? 'bg-slate-300 cursor-not-allowed opacity-50' : 'bg-red-500 text-white shadow-lg'"
                         class="flex-1 sm:flex-none px-5 py-3.5 rounded-2xl font-bold text-xs uppercase transition-all">
-
-                        <span x-text="
-                            settingTombolSelesai !== false && timeLeft > settingTombolSelesai
-                            ? 'Selesai (Kunci)'
-                            : 'Selesai'
-                        "></span>
+                        <span x-text="settingTombolSelesai !== false && timeLeft > settingTombolSelesai ? 'Selesai (Kunci)' : 'Selesai'"></span>
                     </button>
                 </template>
                 <template x-if="currentIndex !== listSoal.length - 1">
@@ -173,7 +151,7 @@
             <div @click="showMobileNav = false" class="md:hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto"></div>
             <div class="mt-auto md:mt-0 bg-white md:rounded-[2rem] border border-slate-200 h-[75vh] md:h-full flex flex-col pointer-events-auto overflow-hidden rounded-t-[2.5rem] relative">
                 <div class="p-6 border-b flex justify-between items-center bg-slate-50/50">
-                    <h2 class="font-extrabold text-slate-800 text-[10px] tracking-[0.2em] uppercase">Peta Navigasi - {{ $mapel->nama_mapel }}</h2>
+                    <h2 class="font-extrabold text-slate-800 text-[10px] tracking-[0.2em] uppercase">Peta Navigasi</h2>
                 </div>
                 <div class="flex-1 overflow-y-auto p-5 grid grid-cols-5 gap-3 custom-scroll">
                     <template x-for="(soal, index) in listSoal" :key="soal.id">
@@ -187,18 +165,9 @@
                 <div class="p-6 bg-slate-50 border-t border-slate-100">
                     <button @click="confirmSelesai()" 
                         :disabled="settingTombolSelesai !== false && timeLeft > settingTombolSelesai"
-                        :class="settingTombolSelesai !== false && timeLeft > settingTombolSelesai
-                            ? 'bg-slate-300 cursor-not-allowed opacity-50'
-                            : 'bg-red-500 hover:bg-red-600 shadow-xl'"
+                        :class="settingTombolSelesai !== false && timeLeft > settingTombolSelesai ? 'bg-slate-300 cursor-not-allowed opacity-50' : 'bg-red-500 hover:bg-red-600 shadow-xl'"
                         class="w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
-
-                        <span x-show="settingTombolSelesai !== false && timeLeft > settingTombolSelesai">
-                            Selesai (Kunci)
-                        </span>
-
-                        <span x-show="settingTombolSelesai === false || timeLeft <= settingTombolSelesai">
-                            Selesai Ujian
-                        </span>
+                        <span x-text="settingTombolSelesai !== false && timeLeft > settingTombolSelesai ? 'Selesai (Kunci)' : 'Selesai Ujian'"></span>
                     </button>
                 </div>
             </div>
@@ -210,27 +179,24 @@
     <script>
         function examHandler() {
             return {
-                    showMobileNav: false,
-                    fontSize: 'medium',
+                showMobileNav: false,
+                fontSize: 'medium',
+                timeLeft: Math.floor({{ $timeLeft }}),
+                settingTombolSelesai: @json($setting_tombol_selesai),
+                settingAntiNyontek: @json($setting_anti_nyontek),
+                currentIndex: 0,
+                listSoal: @json($soal),
+                pelanggaran: 0,
+                maxPelanggaran: @json($setting_max_pelanggaran),
+                isBlocked: false,
+                isSaving: false,
+                isOnline: navigator.onLine,
+                isProcessingViolation: false,
+                saveTimeout: null,
 
-                    timeLeft: Math.floor({{ $timeLeft }}),
-
-                    settingTombolSelesai: @json($setting_tombol_selesai),
-                    settingAntiNyontek: @json($setting_anti_nyontek),
-
-                    currentIndex: 0,
-                    listSoal: @json($soal),
-
-                    pelanggaran: parseInt(localStorage.getItem('cheat_count')) || 0,
-                    maxPelanggaran: 3,
-
-                    isBlocked: false,
-                    isSaving: false,
-                    isOnline: navigator.onLine,
-
-                    get currentSoal() {
-                        return this.listSoal[this.currentIndex];
-                    },
+                get currentSoal() {
+                    return this.listSoal[this.currentIndex];
+                },
 
                 init() {
                     this.startTimer();
@@ -242,44 +208,64 @@
                 },
 
                 setupProtection() {
+                    if (!this.settingAntiNyontek) return;
 
-                    // jika anti nyontek dimatikan
-                    if (!this.settingAntiNyontek) {
-                        return;
-                    }
-
-                    window.onblur = () => {
-                        if (!this.isBlocked) {
+                    // Gunakan gabungan visibilitychange dan blur untuk akurasi tinggi
+                    const detectViolation = () => {
+                        if (document.visibilityState === 'hidden' && !this.isBlocked && !this.isProcessingViolation) {
                             this.handleViolation();
                         }
                     };
 
-                    document.addEventListener('visibilitychange', () => {
-                        if (
-                            document.visibilityState === 'hidden' &&
-                            !this.isBlocked
-                        ) {
-                            this.handleViolation();
-                        }
+                    document.addEventListener('visibilitychange', detectViolation);
+                    window.addEventListener('blur', () => {
+                        // Delay sedikit untuk menghindari false positive (misal: klik alert)
+                        setTimeout(detectViolation, 500);
                     });
                 },
 
-                handleViolation() {
-                    this.pelanggaran++;
-                    localStorage.setItem('cheat_count', this.pelanggaran);
-                    if (this.pelanggaran >= this.maxPelanggaran) {
-                        this.blokirUser();
-                    } else {
-                        Swal.fire({ title: 'Peringatan!', text: `Anda terdeteksi keluar dari halaman ujian (${this.pelanggaran}/${this.maxPelanggaran}). Jika mencapai limit, akun Anda akan diblokir!`, icon: 'warning' });
+                async handleViolation() {
+                    if (!this.settingAntiNyontek || this.isBlocked || this.isProcessingViolation) return;
+                    this.isProcessingViolation = true;
+
+                    try {
+                        const response = await fetch("{{ route('ujian.pelanggaran') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({ mapel_id: {{ $mapel->id }} })
+                        });
+
+                        const data = await response.json();
+                        this.pelanggaran = data.total;
+
+                        if (data.blocked) {
+                            this.blokirUser();
+                        } else {
+                            await Swal.fire({
+                                title: 'Peringatan!',
+                                text: `Anda terdeteksi meninggalkan halaman ujian. Pelanggaran: (${this.pelanggaran}/${this.maxPelanggaran})`,
+                                icon: 'warning',
+                                confirmButtonColor: '#0ea5e9'
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Gagal mencatat pelanggaran:', e);
+                    } finally {
+                        this.isProcessingViolation = false;
                     }
                 },
 
                 async blokirUser() {
                     this.isBlocked = true;
-                    localStorage.removeItem('cheat_count');
-                    Swal.fire({ title: 'AKUN DIBLOKIR!',
-                                text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...', 
-                                icon: 'error', showConfirmButton: false });
+                    Swal.fire({ 
+                        title: 'AKUN DIBLOKIR!',
+                        text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...', 
+                        icon: 'error', 
+                        showConfirmButton: false 
+                    });
                     try {
                         await fetch("{{ route('ujian.blokir') }}", {
                             method: 'POST',
@@ -290,40 +276,48 @@
                     }
                 },
 
-                encrypt(data) { return btoa(JSON.stringify(data)); },
-
                 async saveToDb() {
-                    if (!this.isOnline || this.isBlocked) return;
-                    this.isSaving = true; // AKAN MENGUBAH INDIKATOR JADI KUNING
+                    if (this.isBlocked) return;
+                    this.isSaving = true;
+
+                    // Mengirimkan data bersih tanpa 'encrypt' Base64 (Keamanan diurus Server)
+                    const payloadData = {
+                        mapel_id: {{ $mapel->id }},
+                        soal_id: this.currentSoal.id,
+                        jawaban_id: this.currentSoal.jawaban_terpilih,
+                        is_ragu: this.currentSoal.is_ragu
+                    };
+
                     try {
-                        const payloadData = {
-                            mapel_id: {{ $mapel->id }},
-                            soal_id: this.currentSoal.id,
-                            jawaban_id: this.currentSoal.jawaban_terpilih,
-                            is_ragu: this.currentSoal.is_ragu
-                        };
-                        await fetch("{{ route('ujian.simpan') }}", {
+                        const response = await fetch("{{ route('ujian.simpan') }}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
-                            body: JSON.stringify({ payload: this.encrypt(payloadData) })
+                            body: JSON.stringify(payloadData)
                         });
+
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        this.isOnline = true; // Konfirmasi bahwa server terjangkau
+                    } catch (e) {
+                        console.error('Simpan gagal:', e);
+                        this.isOnline = false; // Jika fetch gagal, anggap koneksi bermasalah
                     } finally {
-                        // Delay 400ms agar mata sempat melihat transisi kuning -> hijau
                         setTimeout(() => { this.isSaving = false; }, 400); 
                     }
                 },
 
-                async handleSelect(db_id) { 
-                    this.currentSoal.jawaban_terpilih = db_id; 
-                    await this.saveToDb();
+                handleSelect(db_id) { 
+                    this.currentSoal.jawaban_terpilih = db_id;
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = setTimeout(() => this.saveToDb(), 300);
                 },
 
-                async toggleRagu() { 
+                toggleRagu() { 
                     this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
-                    await this.saveToDb();
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = setTimeout(() => this.saveToDb(), 300);
                 },
 
                 startTimer() { 
@@ -334,14 +328,26 @@
                 },
 
                 formatTime(s) { 
-                    let h = Math.floor(s/3600).toString().padStart(2,'0');
-                    let m = Math.floor((s%3600)/60).toString().padStart(2,'0');
-                    let sec = (s%60).toString().padStart(2,'0');
+                    const h = Math.floor(s/3600).toString().padStart(2,'0');
+                    const m = Math.floor((s%3600)/60).toString().padStart(2,'0');
+                    const sec = (s%60).toString().padStart(2,'0');
                     return `${h}:${m}:${sec}`; 
                 },
 
-                next() { if(this.currentIndex < this.listSoal.length - 1) { this.currentIndex++; this.refreshMath(); } },
-                prev() { if(this.currentIndex > 0) { this.currentIndex--; this.refreshMath(); } },
+                next() { 
+                    if(this.currentIndex < this.listSoal.length - 1) { 
+                        this.currentIndex++; 
+                        this.refreshMath(); 
+                    } 
+                },
+
+                prev() { 
+                    if(this.currentIndex > 0) { 
+                        this.currentIndex--; 
+                        this.refreshMath(); 
+                    } 
+                },
+
                 setFont(size) { this.fontSize = size; },
 
                 getNavClass(soal, index) {
@@ -352,41 +358,46 @@
                 },
 
                 confirmSelesai() {
-                    if (
-                        this.settingTombolSelesai !== false &&
-                        this.timeLeft > this.settingTombolSelesai
-                    ) {
-                        return;
-                    }
+                    if (this.settingTombolSelesai !== false && this.timeLeft > this.settingTombolSelesai) return;
+                    
                     Swal.fire({
                         title: 'Selesai Ujian?',
+                        text: 'Pastikan semua jawaban sudah terisi dengan benar.',
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, Selesai',
+                        cancelButtonText: 'Batal',
                         confirmButtonColor: '#0ea5e9'
                     }).then((result) => { if (result.isConfirmed) this.submitUjian(); });
                 },
 
                 submitUjian() {
-                    localStorage.removeItem('cheat_count');
                     window.location.href = "{{ route('ujian.selesai', ['id' => $mapel->id]) }}";
                 },
 
                 logoutConfirm() {
                     Swal.fire({
                         title: 'Keluar?',
+                        text: 'Sesi ujian akan tetap berjalan. Anda bisa masuk kembali selama waktu tersedia.',
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonColor: '#ef4444'
                     }).then((result) => {
-                        if (result.isConfirmed) {
-                            localStorage.removeItem('cheat_count');
-                            document.getElementById('logout-form').submit();
-                        }
+                        if (result.isConfirmed) document.getElementById('logout-form').submit();
                     });
                 },
 
-                refreshMath() { this.$nextTick(() => { if(window.MathJax) MathJax.typeset(); }); }
+                refreshMath() {
+                    this.$nextTick(() => {
+                        if (!window.MathJax) return;
+                        // Optimasi: Hanya render area konten ujian, bukan seluruh body
+                        const target = document.getElementById('exam-content');
+                        if (target) {
+                            MathJax.typesetClear([target]);
+                            MathJax.typesetPromise([target]);
+                        }
+                    });
+                }
             }
         }
     </script>

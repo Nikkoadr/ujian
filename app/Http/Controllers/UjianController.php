@@ -8,6 +8,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\UjianPartisipasi;
+use App\Models\Setting;
 
 class UjianController extends Controller
 {
@@ -28,8 +30,10 @@ class UjianController extends Controller
      */
     public function index($id)
     {
-        $setting_tombol_selesai = 300; // 5 menit dalam detik
-        $setting_anti_nyontek = true; // Aktifkan fitur anti-nyontek
+        $setting = Setting::first();
+        $setting_tombol_selesai = $setting->max_tombol_selesai ?? 300;
+        $setting_anti_nyontek = $setting->anti_nyontek ?? true;
+        $setting_max_pelanggaran = $setting->max_pelanggaran ?? 5;
         $user = Auth::user();
 
         if ($user->status === 'diblokir') {
@@ -53,6 +57,7 @@ class UjianController extends Controller
                 'user_id' => $user->id,
                 'mapel_id' => $id,
                 'mulai_ujian' => $sekarang,
+                'pelanggaran' => 0,
                 'created_at' => $sekarang,
                 'updated_at' => $sekarang
             ]);
@@ -93,42 +98,41 @@ class UjianController extends Controller
                     ])
                 ];
             });
-        return view('ujian.index', compact('mapel', 'soal', 'timeLeft', 'setting_tombol_selesai', 'setting_anti_nyontek'));
+        return view('ujian.index', compact('mapel', 'soal', 'timeLeft', 'setting_tombol_selesai', 'setting_anti_nyontek', 'setting_max_pelanggaran'));
     }
 
     public function simpan(Request $request)
     {
         try {
-            // 1. Dekode payload Base64
-            $payload = json_decode(base64_decode($request->payload), true);
+            // Data sekarang dikirim langsung sebagai JSON, Laravel otomatis memetakan ke $request
+            // Kita gunakan $request->all() atau langsung panggil key-nya.
 
-            // 2. Validasi sederhana memastikan data ada
-            if (!$payload) {
-                return response()->json(['success' => false, 'message' => 'Invalid payload'], 400);
+            // 1. Validasi sederhana
+            if (!$request->has('soal_id')) {
+                return response()->json(['success' => false, 'message' => 'Data tidak lengkap'], 400);
             }
 
-            // 3. Eksekusi ke database
+            // 2. Eksekusi ke database menggunakan data langsung dari $request
             DB::table('ujian_progres')->updateOrInsert(
                 [
                     'user_id'  => Auth::id(),
-                    'mapel_id' => $payload['mapel_id'],
-                    'soal_id'  => $payload['soal_id']
+                    'mapel_id' => $request->mapel_id,
+                    'soal_id'  => $request->soal_id
                 ],
                 [
-                    'jawaban_id' => $payload['jawaban_id'],
-                    'is_ragu'    => $payload['is_ragu'] ?? false,
+                    'jawaban_id' => $request->jawaban_id,
+                    'is_ragu'    => $request->is_ragu ?? false,
                     'updated_at' => now()
                 ]
             );
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            // Log error jika diperlukan: Log::error($e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Sync failed'], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
-    public function blokirSiswa(Request $request)
+    public function blokirSiswa()
     {
         $user = Auth::user();
 
@@ -152,5 +156,33 @@ class UjianController extends Controller
             ]);
 
         return redirect()->route('home')->with('success', 'Ujian berhasil diselesaikan.');
+    }
+
+    public function pelanggaran(Request $request)
+    {
+        $setting = Setting::first();
+        $setting_max_pelanggaran = $setting->max_pelanggaran ?? 5;
+
+        $request->validate([
+            'mapel_id' => 'required|integer'
+        ]);
+
+        $partisipasi = UjianPartisipasi::where('user_id', Auth::id())
+            ->where('mapel_id', $request->mapel_id)
+            ->first();
+
+        if (!$partisipasi) {
+            return response()->json(['message' => 'Sesi ujian tidak ditemukan'], 404);
+        }
+
+        $partisipasi->increment('pelanggaran');
+        $partisipasi->refresh();
+
+        $max_boleh = $setting_max_pelanggaran ?? 5;
+
+        return response()->json([
+            'total' => $partisipasi->pelanggaran,
+            'blocked' => $partisipasi->pelanggaran >= $max_boleh
+        ]);
     }
 }

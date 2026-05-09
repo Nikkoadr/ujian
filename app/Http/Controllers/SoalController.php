@@ -32,8 +32,8 @@ class SoalController extends Controller
         $mapel = Mapel::findOrFail($mapel_id);
         $soals = Soal::with('jawaban')
             ->where('mapel_id', $mapel_id)
-            ->latest()
-            ->paginate(100);
+            ->orderBy('created_at', 'desc')
+            ->paginate(60);
         return view('soal.index', compact('mapel', 'soals'));
     }
 

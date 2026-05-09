@@ -67,6 +67,7 @@ Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('
 Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
 
 
-Route::post('/ujian/tambah-pelanggaran', [UjianController::class, 'tambahPelanggaran'])->name('ujian.tambah_pelanggaran');
-Route::get('/ujian/get-pelanggaran', [UjianController::class, 'getPelanggaran'])->name('ujian.get_pelanggaran');
-Route::get('/ujian/sisa-waktu', [UjianController::class, 'getSisaWaktu'])->name('ujian.sisa_waktu');
+Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name('ujian.pelanggaran');
+
+Route::get('/setting', [\App\Http\Controllers\SettingController::class, 'index'])->name('setting.index');
+Route::post('/setting/update', [\App\Http\Controllers\SettingController::class, 'update'])->name('setting.update');
