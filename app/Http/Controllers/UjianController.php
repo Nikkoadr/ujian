@@ -28,8 +28,8 @@ class UjianController extends Controller
      */
     public function index($id)
     {
-        $setting_tombol_selesai = 30000; // 5 menit dalam detik
-        $setting_anti_nyontek = false; // Aktifkan fitur anti-nyontek
+        $setting_tombol_selesai = 300; // 5 menit dalam detik
+        $setting_anti_nyontek = true; // Aktifkan fitur anti-nyontek
         $user = Auth::user();
 
         if ($user->status === 'diblokir') {
