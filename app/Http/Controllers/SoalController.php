@@ -83,6 +83,13 @@ class SoalController extends Controller
         return redirect()->back()->with('success', 'Soal berhasil disimpan!');
     }
 
+    public function edit($id)
+    {
+        $soal = Soal::with('jawaban')->findOrFail($id);
+
+        return view('soal.edit', compact('soal'));
+    }
+
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -140,7 +147,12 @@ class SoalController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Soal dan Jawaban berhasil diperbarui!');
+        return redirect()
+            ->route('soal.index', $soal->mapel_id)
+            ->with([
+                'success' => 'Soal dan Jawaban berhasil diperbarui!',
+                'highlight' => $soal->id
+            ]);
     }
 
     public function destroy($id)

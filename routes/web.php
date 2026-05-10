@@ -51,7 +51,7 @@ Route::resource('mapel', MapelController::class);
 
 Route::prefix('soal')->name('soal.')->group(function () {
     Route::get('/mapel/{mapel_id}', [SoalController::class, 'index'])->name('index');
-
+    Route::get('/{id}/edit', [SoalController::class, 'edit'])->name('soal.edit');
     Route::post('/mapel/{mapel_id}/store', [SoalController::class, 'store'])->name('store');
 
     Route::get('/{id}/edit', [SoalController::class, 'edit'])->name('edit');

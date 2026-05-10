@@ -402,7 +402,8 @@
 
                         @foreach($soals as $item)
 
-                        <div class="card shadow-none border mb-3 overflow-hidden question-item">
+                        <div id="soal-{{ $item->id }}"
+                            class="card shadow-none border mb-3 overflow-hidden question-item">
 
                             <div class="card-header p-0 border-0 bg-white">
 
@@ -430,25 +431,21 @@
                             </div>
 
                             <div id="c{{ $item->id }}"
-                                 class="collapse"
-                                 data-parent="#accSoal">
+                                class="collapse {{ session('highlight') == $item->id ? 'show' : '' }}"
+                                data-parent="#accSoal">
 
                                 <div class="card-body bg-light border-top">
 
                                     <!-- ACTION -->
                                     <div class="d-flex justify-content-end mb-3">
 
-                                        <button class="btn btn-sm btn-white shadow-sm text-primary mr-2 btn-edit-soal"
-                                            data-id="{{ $item->id }}"
-                                            data-pertanyaan="{{ $item->pertanyaan }}"
-                                            data-gambar="{{ $item->gambar_soal }}"
-                                            data-jawaban='@json($item->jawaban)'
-                                            data-url="{{ route('soal.update', $item->id) }}">
+                                    <a href="{{ route('soal.edit', $item->id) }}"
+                                    class="btn btn-sm btn-white shadow-sm text-primary mr-2">
 
-                                            <i class="fas fa-pen mr-1"></i>
-                                            Edit
+                                        <i class="fas fa-pen mr-1"></i>
+                                        Edit
 
-                                        </button>
+                                    </a>
 
                                         <form action="{{ route('soal.destroy', $item->id) }}"
                                               method="POST">
@@ -469,9 +466,21 @@
                                     </div>
 
                                     <!-- PERTANYAAN -->
-                                    <div class="small text-dark mb-4 math-render">
+                                    <div class="small text-dark mb-3 math-render">
                                         {!! $item->pertanyaan !!}
                                     </div>
+
+                                    @if($item->gambar_soal)
+
+                                    <div class="mb-4">
+
+                                        <img src="{{ asset('storage/soal/' . $item->gambar_soal) }}"
+                                            class="img-fluid rounded border shadow-sm"
+                                            style="max-height:250px; object-fit:contain;">
+
+                                    </div>
+
+                                    @endif
 
                                     <!-- JAWABAN -->
                                     <div class="list-group list-group-flush">
@@ -485,7 +494,21 @@
                                             </span>
 
                                             <div class="small math-render {{ $jw->jawaban_benar ? 'text-success font-weight-bold' : 'text-dark' }}">
+
                                                 {!! $jw->teks_jawaban !!}
+
+                                                @if($jw->gambar_jawaban)
+
+                                                <div class="mt-2">
+
+                                                    <img src="{{ asset('storage/jawaban/' . $jw->gambar_jawaban) }}"
+                                                        class="img-fluid rounded border shadow-sm"
+                                                        style="max-height:140px; object-fit:contain;">
+
+                                                </div>
+
+                                                @endif
+
                                             </div>
 
                                         </div>
@@ -864,6 +887,24 @@ $(document).ready(function () {
     });
 
 });
+@if(session('highlight'))
+
+setTimeout(() => {
+
+    const el = document.getElementById('soal-{{ session('highlight') }}');
+
+    if (el) {
+
+        el.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+
+    }
+
+}, 300);
+
+@endif
 </script>
 
 @endpush
