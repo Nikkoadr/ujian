@@ -275,58 +275,13 @@
 
                             @foreach(['A', 'B', 'C', 'D', 'E'] as $i => $l)
 
-                            <div class="pg-item p-3 mb-3 shadow-sm">
-
-                                <div class="d-flex align-items-start">
-
-                                    <!-- RADIO -->
-                                    <div class="pt-2 mr-3">
-                                        <input type="radio"
-                                               name="kunci_jawaban"
-                                               value="{{ $i }}"
-                                               required>
-                                    </div>
-
-                                    <!-- LABEL -->
-                                    <div class="mr-3">
-                                        <div class="answer-badge bg-primary text-white">
-                                            {{ $l }}
-                                        </div>
-                                    </div>
-
-                                    <!-- TEXT -->
-                                    <div class="flex-grow-1">
-
-                                        <textarea name="jawaban[]"
-                                                  class="form-control input-jawaban"></textarea>
-
-                                        <div class="d-flex align-items-center mt-2">
-
-                                            <label class="mb-0 mr-3"
-                                                   style="cursor: pointer;">
-
-                                                <input type="file"
-                                                       name="gambar_jawaban[]"
-                                                       class="hidden-input"
-                                                       onchange="updateLabelSmall(this)">
-
-                                                <small class="text-primary font-weight-bold">
-                                                    <i class="fas fa-camera mr-1"></i>
-                                                    Tambah Gambar
-                                                </small>
-
-                                            </label>
-
-                                            <div class="small text-success font-weight-bold file-status"
-                                                 style="display:none;font-size:11px;"></div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
+                            <x-pg-item
+                                :label="$l"
+                                :value="$i"
+                                textareaName="jawaban[]"
+                                textareaClass="input-jawaban"
+                                fileName="gambar_jawaban[]"
+                            />
 
                             @endforeach
 
@@ -400,235 +355,20 @@
 
                     <div class="accordion" id="accSoal">
 
-                        @foreach($soals as $item)
+                @foreach($soals as $item)
 
-                        <div id="soal-{{ $item->id }}"
-                            class="card shadow-none border mb-3 overflow-hidden question-item">
+                <x-soal-preview
+                    :item="$item"
+                    :loop="$loop"
+                />
 
-                            <div class="card-header p-0 border-0 bg-white">
-
-                                <button class="btn btn-block text-left p-3 d-flex justify-content-between align-items-center shadow-none"
-                                        data-toggle="collapse"
-                                        data-target="#c{{ $item->id }}">
-
-                                    <div class="d-flex align-items-center">
-
-                                        <div class="badge badge-light text-primary px-3 py-2 mr-3">
-                                            {{ $loop->iteration }}
-                                        </div>
-
-                                        <span class="small font-weight-bold text-dark text-truncate pr-2">
-                                            {{ Str::limit(strip_tags($item->pertanyaan), 55) }}
-                                        </span>
-
-                                    </div>
-
-                                    <i class="fas fa-chevron-down text-muted"
-                                       style="font-size: 10px"></i>
-
-                                </button>
-
-                            </div>
-
-                            <div id="c{{ $item->id }}"
-                                class="collapse {{ session('highlight') == $item->id ? 'show' : '' }}"
-                                data-parent="#accSoal">
-
-                                <div class="card-body bg-light border-top">
-
-                                    <!-- ACTION -->
-                                    <div class="d-flex justify-content-end mb-3">
-
-                                    <a href="{{ route('soal.edit', $item->id) }}"
-                                    class="btn btn-sm btn-white shadow-sm text-primary mr-2">
-
-                                        <i class="fas fa-pen mr-1"></i>
-                                        Edit
-
-                                    </a>
-
-                                        <form action="{{ route('soal.destroy', $item->id) }}"
-                                              method="POST">
-
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button type="submit"
-                                                    class="btn btn-sm btn-white shadow-sm text-danger"
-                                                    onclick="return confirm('Hapus soal?')">
-
-                                                <i class="fas fa-trash"></i>
-
-                                            </button>
-
-                                        </form>
-
-                                    </div>
-
-                                    <!-- PERTANYAAN -->
-                                    <div class="small text-dark mb-3 math-render">
-                                        {!! $item->pertanyaan !!}
-                                    </div>
-
-                                    @if($item->gambar_soal)
-
-                                    <div class="mb-4">
-
-                                        <img src="{{ asset('storage/soal/' . $item->gambar_soal) }}"
-                                            class="img-fluid rounded border shadow-sm"
-                                            style="max-height:250px; object-fit:contain;">
-
-                                    </div>
-
-                                    @endif
-
-                                    <!-- JAWABAN -->
-                                    <div class="list-group list-group-flush">
-
-                                        @foreach($item->jawaban as $idx => $jw)
-
-                                        <div class="list-group-item bg-transparent px-0 py-2 border-0 d-flex align-items-start">
-
-                                            <span class="answer-badge {{ $jw->jawaban_benar ? 'bg-success text-white' : 'bg-light text-dark' }} mr-3">
-                                                {{ chr(65 + $idx) }}
-                                            </span>
-
-                                            <div class="small math-render {{ $jw->jawaban_benar ? 'text-success font-weight-bold' : 'text-dark' }}">
-
-                                                {!! $jw->teks_jawaban !!}
-
-                                                @if($jw->gambar_jawaban)
-
-                                                <div class="mt-2">
-
-                                                    <img src="{{ asset('storage/jawaban/' . $jw->gambar_jawaban) }}"
-                                                        class="img-fluid rounded border shadow-sm"
-                                                        style="max-height:140px; object-fit:contain;">
-
-                                                </div>
-
-                                                @endif
-
-                                            </div>
-
-                                        </div>
-
-                                        @endforeach
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        @endforeach
+                @endforeach
 
                     </div>
 
                 </div>
 
             </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- MODAL EDIT -->
-<div class="modal fade"
-     id="modalEditSoal"
-     tabindex="-1"
-     role="dialog"
-     aria-hidden="true">
-
-    <div class="modal-dialog modal-lg">
-
-        <div class="modal-content shadow-lg">
-
-            <div class="modal-header border-0 p-4">
-
-                <h5 class="modal-title font-weight-bold text-dark">
-                    <i class="fas fa-edit mr-2 text-primary"></i>
-                    Edit Soal
-                </h5>
-
-                <button type="button"
-                        class="close"
-                        data-dismiss="modal">
-
-                    <span>&times;</span>
-
-                </button>
-
-            </div>
-
-            <form id="formEditSoal"
-                  method="POST"
-                  enctype="multipart/form-data">
-
-                @csrf
-                @method('PUT')
-
-                <div class="modal-body px-4 pt-0">
-
-                    <div class="form-group mb-4">
-
-                        <label class="section-title">
-                            Konten Pertanyaan
-                        </label>
-
-                        <textarea name="pertanyaan"
-                                  id="editor_edit_soal"
-                                  class="form-control"></textarea>
-
-                        <div id="prev_g_s"
-                             class="mt-3 d-none text-center bg-light p-3 rounded border">
-
-                            <img src=""
-                                 id="render_g_s"
-                                 class="img-thumbnail mb-2"
-                                 style="max-height: 100px">
-
-                            <div class="custom-control custom-checkbox">
-
-                                <input type="checkbox"
-                                       class="custom-control-input"
-                                       name="hapus_gambar_soal"
-                                       id="hgs">
-
-                                <label class="custom-control-label text-danger font-weight-bold small"
-                                       for="hgs">
-
-                                    Hapus Gambar Soal
-
-                                </label>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div id="e_j"></div>
-
-                </div>
-
-                <div class="modal-footer border-0 p-4 bg-light">
-
-                    <button type="submit"
-                            class="btn btn-primary px-5 font-weight-bold shadow rounded-pill">
-
-                        <i class="fas fa-save mr-2"></i>
-                        SIMPAN PERUBAHAN
-
-                    </button>
-
-                </div>
-
-            </form>
 
         </div>
 
@@ -636,7 +376,6 @@
 
 </div>
 @endsection
-
 @push('scripts')
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js"></script>
@@ -764,119 +503,6 @@ $(document).ready(function () {
         ...baseConfig,
         selector: '.input-jawaban',
         height: 140
-    });
-
-    $('.btn-edit-soal').click(function () {
-
-        const d = $(this).data();
-
-        $('#formEditSoal').attr('action', d.url);
-
-        tinymce.remove('#editor_edit_soal');
-
-        $('#editor_edit_soal').val(d.pertanyaan);
-
-        if (d.gambar) {
-
-            $('#render_g_s').attr('src', '/storage/soal/' + d.gambar);
-
-            $('#prev_g_s').removeClass('d-none');
-
-        } else {
-
-            $('#prev_g_s').addClass('d-none');
-
-        }
-
-        let h = '';
-
-        d.jawaban.forEach((jw, i) => {
-
-            let check = jw.jawaban_benar ? 'checked' : '';
-
-            h += `
-            <div class="edit-jw-card shadow-sm">
-
-                <div class="input-group mb-2">
-
-                    <div class="input-group-prepend">
-
-                        <span class="input-group-text bg-transparent border-0">
-
-                            <input type="radio"
-                                   name="kunci_jawaban"
-                                   value="${jw.id}"
-                                   ${check}
-                                   required>
-
-                            <b class="ml-2">${String.fromCharCode(65+i)}</b>
-
-                        </span>
-
-                    </div>
-
-                    <div class="flex-grow-1">
-
-                        <textarea name="jawaban[${jw.id}]"
-                                  id="ed_jw_${jw.id}"
-                                  class="form-control edit-tiny-jawaban">${jw.teks_jawaban}</textarea>
-
-                    </div>
-
-                </div>
-
-                <div class="ml-5">
-
-                    <label class="mb-0"
-                           style="cursor: pointer;">
-
-                        <input type="file"
-                               name="gambar_jawaban_edit[${jw.id}]"
-                               class="hidden-input"
-                               onchange="updateLabelSmall(this)">
-
-                        <small class="text-primary font-weight-bold">
-                            <i class="fas fa-camera mr-1"></i>
-                            Ganti Gambar
-                        </small>
-
-                    </label>
-
-                    <span class="file-status small ml-2 text-success"
-                          style="display:none"></span>
-
-                </div>
-
-            </div>`;
-        });
-
-        $('#e_j').html(h);
-
-        $('#modalEditSoal').modal('show');
-
-    });
-
-    $('#modalEditSoal').on('shown.bs.modal', function () {
-
-        tinymce.init({
-            ...baseConfig,
-            selector: '#editor_edit_soal',
-            height: 200
-        });
-
-        tinymce.init({
-            ...baseConfig,
-            selector: '.edit-tiny-jawaban',
-            height: 140
-        });
-
-    });
-
-    $('#modalEditSoal').on('hidden.bs.modal', function () {
-
-        tinymce.remove('#editor_edit_soal');
-        tinymce.remove('.edit-tiny-jawaban');
-
     });
 
     $('#accSoal').on('shown.bs.collapse', function () {
