@@ -16,7 +16,7 @@
     <link href="{{ asset('assets/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/vendor/datatables/dataTables.bootstrap4.min.css') }}" rel="stylesheet">
     <link rel="icon" href="{{ asset('assets/img/logo.png') }}" type="image/x-icon">
-    
+    @yield('styles')
 </head>
 
 <body id="page-top">
