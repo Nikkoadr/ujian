@@ -21,7 +21,6 @@ class SiswaImport implements ToModel, WithHeadingRow
                 'P' => 'perempuan',
                 default => null,
             };
-
             $user = User::create([
                 'nama'          => $row['nama'],
                 'jenis_kelamin' => $jenisKelamin,

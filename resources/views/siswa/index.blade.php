@@ -46,7 +46,7 @@
                                     <span class="text-muted"><i class="fas fa-envelope fa-xs mr-1"></i> {{ $siswa->user->email }}</span><br>
                                     <span class="text-muted">
                                         <i class="fas fa-venus-mars fa-xs mr-1"></i> 
-                                        {{ $siswa->user->jenis_kelamin == 'L' ? 'Laki-laki' : 'Perempuan' }}
+                                        {{ $siswa->user->jenis_kelamin == 'laki-laki' ? 'Laki-laki' : 'Perempuan' }}
                                     </span>
                                 </div>
                             </td>
@@ -196,8 +196,8 @@
                         <div class="col-md-6 form-group">
                             <label class="small font-weight-bold">Jenis Kelamin</label>
                             <select name="jenis_kelamin" class="form-control @error('jenis_kelamin') is-invalid @enderror" required>
-                                <option value="L" {{ old('jenis_kelamin') == 'L' ? 'selected' : '' }}>Laki-laki</option>
-                                <option value="P" {{ old('jenis_kelamin') == 'P' ? 'selected' : '' }}>Perempuan</option>
+                                <option value="L" {{ old('jenis_kelamin') == 'laki-laki' ? 'selected' : '' }}>Laki-laki</option>
+                                <option value="P" {{ old('jenis_kelamin') == 'perempuan' ? 'selected' : '' }}>Perempuan</option>
                             </select>
                             @error('jenis_kelamin') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
