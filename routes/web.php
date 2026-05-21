@@ -60,7 +60,9 @@ Route::prefix('soal')->name('soal.')->group(function () {
 
     Route::delete('/{id}', [SoalController::class, 'destroy'])->name('destroy');
 });
-
+Route::post('/soal/tinymce-upload', [SoalController::class, 'uploadTinyMceImage'])
+    ->name('soal.tinymce.upload');
+    
 Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');

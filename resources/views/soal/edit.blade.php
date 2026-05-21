@@ -306,11 +306,91 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js"></script>
 
-<script id="MathJax-script"
-        async
-        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+    },
+    startup: {
+        typeset: false
+    }
+};
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
 <script>
+
+function renderMath() {
+
+    if (window.MathJax && MathJax.typesetPromise) {
+
+        MathJax.typesetPromise().catch(function(err) {
+            console.log(err);
+        });
+
+    }
+
+}
+
+function escapeHtml(text) {
+
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+}
+
+function convertWordMatrixToLatex(text) {
+
+    return String(text).replace(
+        /\(■\((.*?)\)\)/g,
+        function(match, content) {
+
+            let rows = content.split('@');
+
+            let latexRows = rows.map(row => {
+                return row.split('&').join(' & ');
+            });
+
+            return '\\begin{bmatrix}'
+                + latexRows.join(' \\\\ ')
+                + '\\end{bmatrix}';
+
+        }
+    );
+
+}
+
+function cleanPasteText(text) {
+
+    text = String(text || '');
+
+    text = text.replace(/\r\n/g, '\n');
+    text = text.replace(/\r/g, '\n');
+
+    text = convertWordMatrixToLatex(text);
+
+    return text;
+
+}
+
+function insertPlainText(editor, text) {
+
+    text = cleanPasteText(text);
+
+    editor.insertContent(
+        escapeHtml(text).replace(/\n/g, '<br>')
+    );
+
+    editor.save();
+
+    setTimeout(renderMath, 150);
+
+}
 
 function updateLabel(input) {
 
@@ -362,10 +442,19 @@ function updateLabelSmall(input) {
 
 function handlePasteSplit(editor, e) {
 
-    let clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+    const clipboard = e.clipboardData || window.clipboardData;
 
-    let lines = clipboardData
-        .split(/\n|[a-eA-E][\.\)]\s?/)
+    if (!clipboard) return false;
+
+    let text =
+        clipboard.getData('text/plain')
+        || clipboard.getData('text')
+        || '';
+
+    text = cleanPasteText(text);
+
+    let lines = text
+        .split(/\n|[a-eA-E][\.\)]\s+/)
         .map(s => s.trim())
         .filter(Boolean);
 
@@ -387,14 +476,23 @@ function handlePasteSplit(editor, e) {
 
             if (allEditors[i]) {
 
-                allEditors[i].setContent(text);
+                allEditors[i].setContent(
+                    escapeHtml(text).replace(/\n/g, '<br>')
+                );
+
                 allEditors[i].save();
 
             }
 
         });
 
+        setTimeout(renderMath, 150);
+
+        return true;
+
     }
+
+    return false;
 
 }
 
@@ -402,25 +500,89 @@ const baseConfig = {
 
     menubar: false,
 
-    plugins: 'lists link code table emoticons',
+    plugins: 'lists link code table emoticons paste',
 
-    toolbar: 'bold italic underline | forecolor backcolor | bullist numlist | removeformat | code',
+    toolbar: `
+        bold italic underline |
+        forecolor backcolor |
+        bullist numlist |
+        table |
+        removeformat |
+        code
+    `,
 
-    content_style: 'body { font-family:Inter,Arial,sans-serif; font-size:14px }',
+    paste_as_text: true,
+    paste_data_images: false,
+    automatic_uploads: false,
+    smart_paste: false,
+
+    extended_valid_elements: '*[*]',
+    verify_html: false,
+    entity_encoding: 'raw',
+
+    content_style: `
+        body {
+            font-family: Inter, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    `,
+
+    paste_preprocess: function(plugin, args) {
+
+        let plainText =
+            $('<div>').html(args.content).text();
+
+        args.content = cleanPasteText(plainText);
+
+    },
 
     setup: function(editor) {
 
-        editor.on('change', function () {
-            editor.save();
-        });
+        editor.on('paste', function(e) {
 
-        editor.on('paste', function (e) {
+            const clipboard =
+                e.clipboardData || window.clipboardData;
+
+            if (!clipboard) return;
+
+            const text =
+                clipboard.getData('text/plain')
+                || clipboard.getData('text')
+                || '';
 
             if (
-                editor.getElement().classList.contains('edit-tiny-jawaban')
+                editor.getElement()
+                .classList
+                .contains('edit-tiny-jawaban')
             ) {
-                handlePasteSplit(editor, e);
+
+                let handled =
+                    handlePasteSplit(editor, e);
+
+                if (!handled) {
+
+                    e.preventDefault();
+
+                    insertPlainText(editor, text);
+
+                }
+
+            } else {
+
+                e.preventDefault();
+
+                insertPlainText(editor, text);
+
             }
+
+        });
+
+        editor.on('change keyup input', function () {
+
+            editor.save();
+
+            setTimeout(renderMath, 150);
 
         });
 
@@ -442,9 +604,7 @@ $(document).ready(function () {
         height: 140
     });
 
-    if (window.MathJax) {
-        MathJax.typesetPromise();
-    }
+    setTimeout(renderMath, 500);
 
 });
 

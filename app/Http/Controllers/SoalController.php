@@ -165,4 +165,32 @@ class SoalController extends Controller
         $soal->delete();
         return redirect()->back()->with('success', 'Soal berhasil dihapus!');
     }
+
+    public function uploadTinyMceImage(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ]);
+
+        $manager = ImageManager::usingDriver(Driver::class);
+
+        $file = $request->file('file');
+
+        $filename = uniqid('editor_', true) . '.jpg';
+
+        $image = $manager->decode($file->getPathname());
+        $image->scaleDown(width: 900);
+
+        $path = storage_path('app/public/soal/editor/' . $filename);
+
+        if (!file_exists(dirname($path))) {
+            mkdir(dirname($path), 0775, true);
+        }
+
+        $image->save($path, quality: 45);
+
+        return response()->json([
+            'location' => asset('storage/soal/editor/' . $filename)
+        ]);
+    }
 }
