@@ -48,7 +48,7 @@
                                 <input type="file" name="gambar_soal" class="hidden-input" onchange="updateLabel(this)">
                                 <i class="fas fa-image text-primary mb-2 d-block" style="font-size: 24px;"></i>
                                 <span class="file-label font-weight-bold small text-uppercase text-primary">
-                                    Lampirkan Gambar Soal (Opsional)
+                                    Lampirkan Gambar Soal Manual (Opsional)
                                 </span>
                             </label>
                         </div>
@@ -207,15 +207,13 @@
         if (lines.length > 1) {
             e.preventDefault();
 
-            let targetClass = editor.getElement().classList.contains('input-jawaban')
-                ? '.input-jawaban'
-                : '.edit-tiny-jawaban';
-
             let allEditors = [];
 
-            $(targetClass).each(function () {
+            $('.input-jawaban').each(function () {
                 let instance = tinymce.get(this.id);
-                if (instance) allEditors.push(instance);
+                if (instance) {
+                    allEditors.push(instance);
+                }
             });
 
             lines.forEach((text, i) => {
@@ -235,24 +233,71 @@
     }
 
     const baseConfig = {
-
         menubar: false,
 
-        plugins: 'lists link code table emoticons paste',
+        plugins: 'lists link code table emoticons image',
 
         toolbar: `
             bold italic underline |
             forecolor backcolor |
             bullist numlist |
-            table |
+            table image |
             removeformat |
             code
         `,
 
-        paste_as_text: true,
-        paste_data_images: false,
-        automatic_uploads: false,
+        paste_as_text: false,
+        paste_data_images: true,
+        automatic_uploads: true,
         smart_paste: false,
+
+        images_upload_url: "{{ route('soal.tinymce.upload') }}",
+        images_upload_credentials: true,
+
+        images_upload_handler: function (blobInfo, progress) {
+            return new Promise((resolve, reject) => {
+
+                const formData = new FormData();
+
+                const activeEditor = tinymce.activeEditor;
+
+                const isJawaban =
+                    activeEditor.getElement().classList.contains('input-jawaban')
+                    ||
+                    activeEditor.getElement().classList.contains('edit-tiny-jawaban');
+
+                formData.append(
+                    'file',
+                    blobInfo.blob(),
+                    blobInfo.filename()
+                );
+
+                formData.append(
+                    'type',
+                    isJawaban ? 'jawaban' : 'soal'
+                );
+
+                fetch("{{ route('soal.tinymce.upload') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.location) {
+                        resolve(result.location);
+                    } else {
+                        reject('Upload gambar gagal');
+                    }
+                })
+                .catch(() => {
+                    reject('Upload gambar gagal');
+                });
+            });
+        },
 
         extended_valid_elements: '*[*]',
         valid_elements: '*[*]',
@@ -265,56 +310,61 @@
                 font-size: 14px;
                 line-height: 1.6;
             }
+
+            img {
+                max-width: 100%;
+                height: auto;
+            }
         `,
 
         paste_preprocess: function(plugin, args) {
-            let plainText = $('<div>').html(args.content).text();
+            if (args.content.includes('<img')) {
+                return;
+            }
 
+            let plainText = $('<div>').html(args.content).text();
             args.content = cleanPasteText(plainText);
         },
 
         setup: function(editor) {
-
             editor.on('paste', function(e) {
-
                 const clipboard = e.clipboardData || window.clipboardData;
 
-                if (!clipboard) return;
+                if (!clipboard) {
+                    return;
+                }
+
+                const hasImage = Array.from(clipboard.items || []).some(item => {
+                    return item.type && item.type.indexOf('image') === 0;
+                });
+
+                if (hasImage) {
+                    return;
+                }
 
                 const text =
                     clipboard.getData('text/plain')
                     || clipboard.getData('text')
                     || '';
 
-                if (
-                    editor.getElement()
-                    .classList
-                    .contains('input-jawaban')
-                ) {
-
+                if (editor.getElement().classList.contains('input-jawaban')) {
                     let handled = handlePasteSplit(editor, e);
 
                     if (!handled) {
                         e.preventDefault();
                         insertPlainText(editor, text);
                     }
-
                 } else {
-
                     e.preventDefault();
                     insertPlainText(editor, text);
-
                 }
-
             });
 
-            editor.on('change keyup input', function () {
+            editor.on('change keyup input SetContent', function () {
                 editor.save();
                 setTimeout(renderMath, 150);
             });
-
         }
-
     };
 
     function updateLabel(input) {

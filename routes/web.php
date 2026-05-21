@@ -37,7 +37,7 @@ Route::post('/mapel/import', [MapelController::class, 'import'])->name('mapel.im
 Route::get('/ujian/{id}/mulai', [UjianController::class, 'index'])->name('ujian.mulai');
 Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
 Route::post('/ujian/blokir', [UjianController::class, 'blokirSiswa'])->name('ujian.blokir');
-Route::get('/ujian/{id}/selesai', [UjianController::class, 'selesai'])->name('ujian.selesai');
+Route::post('/ujian/{id}/selesai', [UjianController::class, 'selesai'])->name('ujian.selesai');
 
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
@@ -62,7 +62,7 @@ Route::prefix('soal')->name('soal.')->group(function () {
 });
 Route::post('/soal/tinymce-upload', [SoalController::class, 'uploadTinyMceImage'])
     ->name('soal.tinymce.upload');
-    
+
 Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');

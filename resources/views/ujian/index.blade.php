@@ -533,6 +533,8 @@
                     <template x-if="currentSoal.gambar_soal">
                         <div class="mb-8 bg-slate-50 p-3 sm:p-4 rounded-3xl border border-slate-200 text-center">
                             <img :src="currentSoal.gambar_soal"
+                                loading="lazy"
+                                decoding="async"
                                  class="max-w-full max-h-[500px] object-contain mx-auto inline-block shadow-lg">
                         </div>
                     </template>
@@ -653,11 +655,12 @@
                     <template x-for="(soal, index) in listSoal" :key="soal.id">
 
                         <button @click="
-                                    currentIndex = index;
-                                    showMobileNav = false;
-                                    refreshMath();
-                                    scrollToTop();
-                                "
+                                currentIndex = index;
+                                showMobileNav = false;
+                                refreshMath();
+                                preloadNextImage();
+                                scrollToTop();
+                            "
                                 class="aspect-square rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all duration-200 hover:scale-105"
                                 :class="getNavClass(soal, index)">
 
@@ -691,6 +694,13 @@
         @csrf
     </form>
 
+    <form id="form-selesai"
+        action="{{ route('ujian.selesai', ['id' => $mapel->id]) }}"
+        method="POST"
+        class="hidden">
+        @csrf
+    </form>
+
     <script>
         function examHandler() {
             return {
@@ -716,6 +726,7 @@
                 init() {
                     this.startTimer();
                     this.refreshMath();
+                    this.preloadNextImage();
                     this.setupProtection();
 
                     window.addEventListener('online', () => {
@@ -899,6 +910,7 @@
                     if (this.currentIndex < this.listSoal.length - 1) {
                         this.currentIndex++;
                         this.refreshMath();
+                        this.preloadNextImage();
                         this.scrollToTop();
                     }
                 },
@@ -907,6 +919,7 @@
                     if (this.currentIndex > 0) {
                         this.currentIndex--;
                         this.refreshMath();
+                        this.preloadNextImage();
                         this.scrollToTop();
                     }
                 },
@@ -969,7 +982,7 @@
                 },
 
                 submitUjian() {
-                    window.location.href = "{{ route('ujian.selesai', ['id' => $mapel->id]) }}";
+                    document.getElementById('form-selesai').submit();
                 },
 
                 logoutConfirm() {
@@ -987,6 +1000,41 @@
                             document.getElementById('logout-form').submit();
                         }
                     });
+                },
+
+                preloadNextImage() {
+                    const nextSoal = this.listSoal[this.currentIndex + 1];
+
+                    if (!nextSoal) return;
+
+                    if (nextSoal.gambar_soal) {
+                        const img = new Image();
+                        img.src = nextSoal.gambar_soal;
+                    }
+
+                    if (nextSoal.pertanyaan) {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = nextSoal.pertanyaan;
+
+                        tempDiv.querySelectorAll('img').forEach((image) => {
+                            const img = new Image();
+                            img.src = image.src;
+                        });
+                    }
+
+                    if (nextSoal.pilihan) {
+                        nextSoal.pilihan.forEach((opt) => {
+                            if (!opt.teks) return;
+
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = opt.teks;
+
+                            tempDiv.querySelectorAll('img').forEach((image) => {
+                                const img = new Image();
+                                img.src = image.src;
+                            });
+                        });
+                    }
                 },
 
                 refreshMath() {
