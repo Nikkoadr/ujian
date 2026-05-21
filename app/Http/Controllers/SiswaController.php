@@ -170,13 +170,12 @@ class SiswaController extends Controller
         return redirect()->route('siswa.index')->with('success', 'Data siswa berhasil diperbarui.');
     }
 
-    // Blokir / Buka Blokir (Admin & Pengawas)
     public function toggleStatus($id)
     {
         $siswa = Siswa::findOrFail($id);
         $user = $siswa->user;
 
-        $sebelum = $user->status; // simpan status lama
+        $sebelum = $user->status;
 
         // Logika switch status
         $user->status = ($user->status == 'aktif') ? 'diblokir' : 'aktif';
@@ -197,8 +196,8 @@ class SiswaController extends Controller
             ]);
         }
 
-        // Jika dipanggil via klik tombol biasa (Admin Desktop)
-        return redirect()->back()->with('success', 'Status akun ' . $user->nama . ' berhasil diubah.');
+        // TAMBAHKAN INI: Skenario jika diklik dari halaman biasa (Non-AJAX)
+        return redirect()->back()->with('success', 'Status ' . $user->nama . ' sekarang ' . $user->status);
     }
 
     // Hapus Siswa (Admin Only)

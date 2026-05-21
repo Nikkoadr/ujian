@@ -12,6 +12,7 @@ use App\Http\Controllers\PengawasController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\KelasController;
 use App\Http\Controllers\TokenController;
+use App\Http\Controllers\SettingController;
 
 Route::get('/up', fn() => response()->json(['status' => 'ok']));
 
@@ -69,5 +70,5 @@ Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->nam
 
 Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name('ujian.pelanggaran');
 
-Route::get('/setting', [\App\Http\Controllers\SettingController::class, 'index'])->name('setting.index');
-Route::post('/setting/update', [\App\Http\Controllers\SettingController::class, 'update'])->name('setting.update');
+Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
+Route::post('/setting/update', [SettingController::class, 'update'])->name('setting.update');
