@@ -140,7 +140,7 @@ class SiswaController extends Controller
             'nisn' => 'required|unique:siswa,nisn,' . $siswa->id,
             'nis' => 'required|unique:siswa,nis,' . $siswa->id,
             'kelas_id' => 'required|exists:kelas,id',
-            'jenis_kelamin' => 'required|in:L,P',
+            'jenis_kelamin' => 'required|in:laki-laki,perempuan',
             'password' => 'nullable|min:8', // Password opsional saat edit
         ]);
 
