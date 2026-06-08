@@ -888,14 +888,18 @@
                 },
 
                 startTimer() {
+                    const endTime = Date.now() + (this.timeLeft * 1000);
+
                     const timer = setInterval(() => {
-                        if (this.timeLeft > 0) {
-                            this.timeLeft--;
-                        } else {
+                        const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+
+                        this.timeLeft = remaining;
+
+                        if (remaining <= 0) {
                             clearInterval(timer);
                             this.submitUjian();
                         }
-                    }, 1000);
+                    }, 250);
                 },
 
                 formatTime(s) {

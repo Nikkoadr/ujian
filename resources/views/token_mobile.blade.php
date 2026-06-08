@@ -4,13 +4,23 @@
 @push('styles')
 <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap');
-    
-    .token-font { font-family: 'JetBrains Mono', monospace; }
+
+    .token-font {
+        font-family: 'JetBrains Mono', monospace;
+    }
 
     @keyframes pulse-red {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
     }
 
     .timer-urgent {
@@ -24,33 +34,50 @@
 
 @section('content')
 <div class="min-h-[80vh] flex flex-col px-6 py-10">
+
     <div class="mb-8">
-        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Token Akses</h1>
-        <p class="text-slate-500 text-sm mt-1 font-medium">Gunakan kode ini untuk masuk ke ujian.</p>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">
+            Token Akses
+        </h1>
+
+        <p class="text-slate-500 text-sm mt-1 font-medium">
+            Gunakan kode ini untuk masuk ke ujian.
+        </p>
     </div>
 
     <div class="relative bg-white border border-slate-200 rounded-[40px] p-10 text-center shadow-xl shadow-indigo-100/50 overflow-hidden">
+
         <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full opacity-50"></div>
         <div class="absolute -bottom-10 -left-10 w-24 h-24 bg-slate-50 rounded-full opacity-50"></div>
 
         <span class="relative z-10 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6 block">
             Kode Valid Sesi Ini
         </span>
-        
+
         <div class="relative z-10 flex flex-col items-center">
-            <span id="token-display" class="token-font text-5xl sm:text-6xl font-extrabold tracking-widest bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm mb-2">
+
+            <span id="token-display"
+                  class="token-font text-5xl sm:text-6xl font-extrabold tracking-widest bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm mb-2">
                 {{ $token }}
             </span>
-            
-            <button onclick="copyToken()" class="mt-2 flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-full transition-all active:scale-95">
+
+            <button onclick="copyToken()"
+                    class="mt-2 flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-full transition-all active:scale-95">
+
                 <i class="fa-regular fa-copy text-xs"></i>
-                <span class="text-[10px] font-bold uppercase tracking-wider">Salin Kode</span>
+
+                <span class="text-[10px] font-bold uppercase tracking-wider">
+                    Salin Kode
+                </span>
             </button>
         </div>
 
         <div class="mt-12 flex justify-center">
-            <div id="timer-container" class="flex items-center gap-3 px-6 py-3 bg-slate-50 border border-slate-200 rounded-2xl transition-all duration-500">
+            <div id="timer-container"
+                 class="flex items-center gap-3 px-6 py-3 bg-slate-50 border border-slate-200 rounded-2xl transition-all duration-500">
+
                 <i class="fa-solid fa-clock-rotate-left text-indigo-500" id="timer-icon"></i>
+
                 <span id="timer" class="token-font text-xl font-bold text-slate-700 leading-none">
                     00:00
                 </span>
@@ -61,60 +88,80 @@
     <div class="mt-8 bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
         <div class="flex gap-3">
             <i class="fa-solid fa-circle-info text-indigo-500 mt-0.5"></i>
+
             <p class="text-[11px] text-indigo-900/70 leading-relaxed font-medium">
                 Token diperbarui secara otomatis tiap 5 menit. Jika waktu habis dan token belum berubah, harap tunggu sejenak.
             </p>
         </div>
     </div>
+
 </div>
 @endsection
 
 @push('scripts')
 <script>
-    let timeLeft = {{ $secondsRemaining }};
+    const initialTimeLeft = Number({{ $secondsRemaining }});
+    const endTime = Date.now() + (initialTimeLeft * 1000);
+
     let isStale = {{ $isStale ? 'true' : 'false' }};
     let refreshAttempted = false;
+    let timerInterval = null;
 
     const timerText = document.getElementById('timer');
     const timerCont = document.getElementById('timer-container');
     const timerIcon = document.getElementById('timer-icon');
 
+    function getTimeLeft() {
+        return Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+    }
+
+    function setUrgentMode() {
+        timerCont.classList.add('timer-urgent');
+
+        if (timerIcon.classList.contains('text-indigo-500')) {
+            timerIcon.classList.replace('text-indigo-500', 'text-red-500');
+        } else {
+            timerIcon.classList.add('text-red-500');
+        }
+
+        if (!timerIcon.classList.contains('fa-spin-pulse')) {
+            timerIcon.classList.add('fa-spin-pulse');
+        }
+    }
+
+    function reloadOnce() {
+        if (refreshAttempted) return;
+
+        refreshAttempted = true;
+
+        setTimeout(() => {
+            window.location.reload();
+        }, 10000);
+    }
+
     function update() {
-        // Logic jika waktu habis atau data memang sudah stale dari server
-        if(timeLeft <= 0 || isStale) { 
+        const timeLeft = getTimeLeft();
+
+        if (timeLeft <= 0 || isStale) {
             timerText.innerText = "MENUNGGU...";
-            timerCont.classList.add('timer-urgent');
-            
-            // CEGAH INFINITE REFRESH: 
-            // Jika sudah mencoba refresh, jangan panggil reload() lagi sampai 10 detik kemudian
-            if(!refreshAttempted) {
-                refreshAttempted = true;
-                setTimeout(() => {
-                    window.location.reload(); 
-                }, 10000); // Tunggu 10 detik sebelum refresh halaman
-            }
-            return; 
+            setUrgentMode();
+            reloadOnce();
+            return;
         }
 
         const min = Math.floor(timeLeft / 60).toString().padStart(2, '0');
         const sec = (timeLeft % 60).toString().padStart(2, '0');
-        
+
         timerText.innerText = `${min}:${sec}`;
 
-        // Masuk zona urgent (1 menit terakhir)
-        if(timeLeft < 60) {
-            timerCont.classList.add('timer-urgent');
-            timerIcon.classList.replace('text-indigo-500', 'text-red-500');
-            if(!timerIcon.classList.contains('fa-spin-pulse')) {
-                timerIcon.classList.add('fa-spin-pulse');
-            }
+        if (timeLeft < 60) {
+            setUrgentMode();
         }
-
-        timeLeft--;
     }
 
     function copyToken() {
         const token = "{{ $token }}";
+
         navigator.clipboard.writeText(token).then(() => {
             const Toast = Swal.mixin({
                 toast: true,
@@ -123,15 +170,21 @@
                 timer: 1500,
                 timerProgressBar: true
             });
+
             Toast.fire({
                 icon: 'success',
                 title: 'Token berhasil disalin'
             });
+        }).catch(() => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal menyalin token',
+                text: 'Silakan salin token secara manual.'
+            });
         });
     }
 
-    // Jalankan Timer
-    setInterval(update, 1000);
+    timerInterval = setInterval(update, 250);
     update();
 </script>
 @endpush

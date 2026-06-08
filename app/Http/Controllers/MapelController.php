@@ -129,8 +129,40 @@ class MapelController extends Controller
 
         $ujian = Mapel::find($request->ujian_id);
 
+        $sekarang = now();
+
+        $mulai = \Carbon\Carbon::parse(
+            $ujian->tanggal . ' ' . $ujian->jam_mulai
+        );
+
+        $selesai = \Carbon\Carbon::parse(
+            $ujian->tanggal . ' ' . $ujian->jam_selesai
+        );
+
+        // CEK BELUM MULAI
+        if ($sekarang->lt($mulai)) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ujian belum dimulai.'
+            ], 403);
+        }
+
+        // CEK SUDAH SELESAI
+        if ($sekarang->gte($selesai)) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Waktu ujian sudah berakhir.'
+            ], 403);
+        }
+
+        // VALIDASI TOKEN
         if ($ujian->token === strtoupper($request->token)) {
-            session(['akses_ujian_' . $ujian->id => Auth::id()]);
+
+            session([
+                'akses_ujian_' . $ujian->id => Auth::id()
+            ]);
 
             return response()->json([
                 'success' => true,

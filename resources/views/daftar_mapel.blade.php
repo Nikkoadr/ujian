@@ -308,9 +308,23 @@
 
                                 </template>
 
+                                <!-- BELUM MULAI -->
+                                <template
+                                    x-if="!ujian.partisipasi && isUjianBelumMulai(ujian)">
+
+                                    <button
+                                        disabled
+                                        class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+
+                                        Ujian Belum Dimulai
+
+                                    </button>
+
+                                </template>
+
                                 <!-- MULAI -->
                                 <template
-                                    x-if="!ujian.partisipasi && !isUjianTerlewat(ujian)">
+                                    x-if="!ujian.partisipasi && !isUjianBelumMulai(ujian) && !isUjianTerlewat(ujian)">
 
                                     <button
                                         @click="openModal(ujian)"
@@ -482,15 +496,15 @@
                 selectedUjian: null,
                 searchQuery: '',
 
-                currentTime: new Date("{{ now()->format('Y-m-d H:i:s') }}").getTime(),
+                currentTime: Date.now(),
 
                 allUjian: [],
 
                 init() {
 
-                    setInterval(() => {
-                        this.currentTime += 1000;
-                    }, 1000);
+                setInterval(() => {
+                    this.currentTime = Date.now();
+                }, 250);
 
                     this.allUjian = ujianData.map(u => ({
 
@@ -585,6 +599,25 @@
 
                     return `${h > 0 ? h + 'j ' : ''}${m}m ${s}s`;
 
+                },
+
+                isUjianBelumMulai(ujian) {
+                    if (!ujian.jam_mulai) {
+                        return false;
+                    }
+
+                    const now = new Date();
+
+                    const currentMinutes =
+                        (now.getHours() * 60) + now.getMinutes();
+
+                    const waktu =
+                        ujian.jam_mulai.substring(0, 5).split(':');
+
+                    const mulaiMinutes =
+                        (parseInt(waktu[0]) * 60) + parseInt(waktu[1]);
+
+                    return currentMinutes < mulaiMinutes;
                 },
 
                 isUjianTerlewat(ujian) {

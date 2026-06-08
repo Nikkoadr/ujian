@@ -104,7 +104,9 @@
 
 @push('scripts')
 <script>
-    let timeLeft = {{ $secondsRemaining }};
+    const initialTimeLeft = Number({{ $secondsRemaining }});
+    const endTime = Date.now() + (initialTimeLeft * 1000);
+
     let isStaleServer = {{ $isStale ? 'true' : 'false' }};
     let refreshAttempted = false;
 
@@ -114,46 +116,66 @@
     const statusText = document.getElementById('status-text');
     const spinner = document.getElementById('status-spinner');
 
+    function getTimeLeft() {
+        return Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+    }
+
+    function setStaleState() {
+        timerDisplay.innerHTML = "MENUNGGU...";
+
+        timerDisplay.classList.add('text-stale');
+        timerContainer.classList.add('timer-stale');
+
+        spinner.classList.remove('text-success');
+        spinner.classList.add('text-danger');
+
+        statusText.innerText = "MENUNGGU UPDATE SISTEM";
+    }
+
+    function tryReload() {
+        if (refreshAttempted) return;
+
+        refreshAttempted = true;
+
+        setTimeout(() => {
+            window.location.reload();
+        }, 10000);
+    }
+
     function updateTimer() {
-        // Jika waktu habis di client atau memang sudah kadaluarsa (Stale) dari server
+        const timeLeft = getTimeLeft();
+
         if (timeLeft <= 0 || isStaleServer) {
-            timerDisplay.innerHTML = "MENUNGGU...";
-            timerDisplay.classList.add('text-stale');
-            timerContainer.classList.add('timer-stale');
-            spinner.classList.replace('text-success', 'text-danger');
-            statusText.innerText = "MENUNGGU UPDATE SISTEM";
-            
-            // COOLDOWN REFRESH: Jika Cron Job mati, jangan refresh setiap detik.
-            // Beri jeda 10 detik sebelum mencoba reload halaman lagi.
-            if (!refreshAttempted) {
-                refreshAttempted = true;
-                setTimeout(() => {
-                    window.location.reload();
-                }, 10000); 
-            }
+            setStaleState();
+            tryReload();
             return;
         }
 
-        let minutes = Math.floor(timeLeft / 60);
-        let seconds = timeLeft % 60;
+        const minutes = Math.floor(timeLeft / 60)
+            .toString()
+            .padStart(2, '0');
 
-        minutes = minutes < 10 ? '0' + minutes : minutes;
-        seconds = seconds < 10 ? '0' + seconds : seconds;
+        const seconds = (timeLeft % 60)
+            .toString()
+            .padStart(2, '0');
 
         timerDisplay.innerHTML = `${minutes}:${seconds}`;
-        
-        // Efek visual jika waktu kritis (< 30 detik)
+
+        // warning 30 detik terakhir
         if (timeLeft < 30) {
+
             timerDisplay.classList.remove('text-primary');
             timerDisplay.classList.add('text-danger');
-            timerIcon.classList.add('fa-beat-alpha'); // Opsional: butuh FontAwesome 6
-        }
 
-        timeLeft--;
+            if (!timerIcon.classList.contains('fa-beat-alpha')) {
+                timerIcon.classList.add('fa-beat-alpha');
+            }
+        }
     }
 
-    // Jalankan timer
-    setInterval(updateTimer, 1000);
+    // update realtime berbasis jam asli
+    setInterval(updateTimer, 250);
+
     updateTimer();
 </script>
 @endpush
