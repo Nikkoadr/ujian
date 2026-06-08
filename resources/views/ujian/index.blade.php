@@ -830,7 +830,7 @@
                 },
 
                 async saveToDb() {
-                    if (this.isBlocked) return;
+                    if (this.isBlocked) return false;
 
                     this.isSaving = true;
 
@@ -846,20 +846,33 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Accept': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
                             body: JSON.stringify(payloadData)
                         });
 
                         if (!response.ok) {
-                            throw new Error('Network response was not ok');
+                            throw new Error('Gagal menyimpan jawaban');
                         }
 
                         this.isOnline = true;
+                        return true;
 
                     } catch (e) {
                         console.error('Simpan gagal:', e);
+
                         this.isOnline = false;
+
+                        Swal.fire({
+                            title: 'Koneksi Terputus',
+                            text: 'Jawaban belum tersimpan ke server. Periksa internet atau hubungi pengawas.',
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444'
+                        });
+
+                        return false;
+
                     } finally {
                         setTimeout(() => {
                             this.isSaving = false;
@@ -868,22 +881,54 @@
                 },
 
                 handleSelect(db_id) {
+                    if (!this.isOnline) {
+                        Swal.fire({
+                            title: 'Koneksi Terputus',
+                            text: 'Jawaban tidak dapat disimpan. Periksa internet lalu lanjutkan kembali.',
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444'
+                        });
+
+                        return;
+                    }
+
+                    const jawabanLama = this.currentSoal.jawaban_terpilih;
                     this.currentSoal.jawaban_terpilih = db_id;
 
                     clearTimeout(this.saveTimeout);
 
-                    this.saveTimeout = setTimeout(() => {
-                        this.saveToDb();
+                    this.saveTimeout = setTimeout(async () => {
+                        const berhasil = await this.saveToDb();
+
+                        if (!berhasil) {
+                            this.currentSoal.jawaban_terpilih = jawabanLama;
+                        }
                     }, 300);
                 },
 
                 toggleRagu() {
+                    if (!this.isOnline) {
+                        Swal.fire({
+                            title: 'Koneksi Terputus',
+                            text: 'Status ragu-ragu tidak dapat disimpan karena koneksi bermasalah.',
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444'
+                        });
+
+                        return;
+                    }
+
+                    const raguLama = this.currentSoal.is_ragu;
                     this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
 
                     clearTimeout(this.saveTimeout);
 
-                    this.saveTimeout = setTimeout(() => {
-                        this.saveToDb();
+                    this.saveTimeout = setTimeout(async () => {
+                        const berhasil = await this.saveToDb();
+
+                        if (!berhasil) {
+                            this.currentSoal.is_ragu = raguLama;
+                        }
                     }, 300);
                 },
 

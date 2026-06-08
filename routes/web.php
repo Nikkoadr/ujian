@@ -38,6 +38,10 @@ Route::get('/ujian/{id}/mulai', [UjianController::class, 'index'])->name('ujian.
 Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
 Route::post('/ujian/blokir', [UjianController::class, 'blokirSiswa'])->name('ujian.blokir');
 Route::post('/ujian/{id}/selesai', [UjianController::class, 'selesai'])->name('ujian.selesai');
+Route::get('/ujian/{id}/selesai', function () {
+    return redirect()->route('home')
+        ->with('success', 'Ujian sudah selesai.');
+});
 
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);

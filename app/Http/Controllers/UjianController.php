@@ -147,15 +147,28 @@ class UjianController extends Controller
     {
         $user = Auth::user();
 
-        DB::table('ujian_partisipasi')
+        $partisipasi = DB::table('ujian_partisipasi')
             ->where('user_id', $user->id)
             ->where('mapel_id', $id)
-            ->update([
-                'status' => 'selesai',
-                'updated_at' => now()
-            ]);
+            ->first();
 
-        return redirect()->route('home')->with('success', 'Ujian berhasil diselesaikan.');
+        if (!$partisipasi) {
+            return redirect()->route('home')
+                ->with('error', 'Data ujian tidak ditemukan.');
+        }
+
+        if ($partisipasi->status !== 'selesai') {
+            DB::table('ujian_partisipasi')
+                ->where('user_id', $user->id)
+                ->where('mapel_id', $id)
+                ->update([
+                    'status' => 'selesai',
+                    'updated_at' => now()
+                ]);
+        }
+
+        return redirect()->route('home')
+            ->with('success', 'Ujian berhasil diselesaikan.');
     }
 
     public function pelanggaran(Request $request)
