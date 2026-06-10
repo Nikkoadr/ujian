@@ -76,8 +76,8 @@
                             <div class="col-md-6 form-group">
                                 <label class="small font-weight-bold">Jenis Kelamin</label>
                                 <select name="jenis_kelamin" class="form-control @error('jenis_kelamin') is-invalid @enderror" required>
-                                    <option value="L" {{ old('jenis_kelamin', $siswa->user->jenis_kelamin) == 'L' ? 'selected' : '' }}>Laki-laki</option>
-                                    <option value="P" {{ old('jenis_kelamin', $siswa->user->jenis_kelamin) == 'P' ? 'selected' : '' }}>Perempuan</option>
+                                    <option value="laki-laki" {{ old('jenis_kelamin', $siswa->user->jenis_kelamin) == 'laki-laki' ? 'selected' : '' }}>Laki-laki</option>
+                                    <option value="perempuan" {{ old('jenis_kelamin', $siswa->user->jenis_kelamin) == 'perempuan' ? 'selected' : '' }}>Perempuan</option>
                                 </select>
                                 @error('jenis_kelamin')
                                     <div class="invalid-feedback">{{ $message }}</div>
