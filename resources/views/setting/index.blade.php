@@ -139,20 +139,18 @@
 
                                     <div class="input-group">
 
-                                        <input
-                                            type="number"
-                                            name="max_tombol_selesai"
-                                            value="{{ $setting->max_tombol_selesai ?? 300 }}"
-                                            class="form-control form-control-lg text-center font-weight-bold"
-                                            min="0"
-                                            required
-                                        >
+                                    <input
+                                        type="number"
+                                        name="max_tombol_selesai"
+                                        value="{{ isset($setting->max_tombol_selesai) ? ($setting->max_tombol_selesai / 60) : 5 }}"
+                                        class="form-control form-control-lg text-center font-weight-bold"
+                                        min="0"
+                                        required
+                                    >
 
-                                        <div class="input-group-append">
-                                            <span class="input-group-text bg-light">
-                                                Detik
-                                            </span>
-                                        </div>
+                                <span class="input-group-text bg-light">
+                                    Menit
+                                </span>
 
                                     </div>
 

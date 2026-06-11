@@ -56,14 +56,13 @@
         </a>
     </li>
 
-<li class="nav-item {{ request()->routeIs('mapel.*') || request()->is('soal/mapel/*') ? 'active' : '' }}">
-    <a class="nav-link" href="{{ route('mapel.index') }}">
-        <i class="fas fa-fw fa-book"></i>
-        <span>Mata Pelajaran</span>
-    </a>
-</li>
+    <li class="nav-item {{ request()->routeIs('mapel.*') || request()->is('soal/mapel/*') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('mapel.index') }}">
+            <i class="fas fa-fw fa-book"></i>
+            <span>Mata Pelajaran</span>
+        </a>
+    </li>
 
-    {{-- MENU TOKEN BARU --}}
     <li class="nav-item {{ request()->routeIs('token.*') ? 'active' : '' }}">
         <a class="nav-link" href="{{ route('token.index') }}">
             <i class="fas fa-fw fa-key"></i>
@@ -77,6 +76,13 @@
         Hasil & Laporan
     </div>
 
+    <li class="nav-item {{ request()->routeIs('ujian-handler.*') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('ujian-handler.index') }}">
+            <i class="fas fa-fw fa-user-cog"></i>
+            <span>Handler Ujian</span>
+        </a>
+    </li>
+
     <li class="nav-item {{ request()->routeIs('laporan.index') ? 'active' : '' }}">
         <a class="nav-link" href="{{ route('laporan.index') }}">
             <i class="fas fa-fw fa-chart-line"></i>
@@ -85,7 +91,7 @@
     </li>
 
     <hr class="sidebar-divider d-none d-md-block">
-    
+
     <li class="nav-item {{ request()->routeIs('setting.index') ? 'active' : '' }}">
         <a class="nav-link" href="{{ route('setting.index') }}">
             <i class="fas fa-fw fa-cogs"></i>

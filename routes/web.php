@@ -13,6 +13,7 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\KelasController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\UjianHandlerController;
 
 Route::get('/up', fn() => response()->json(['status' => 'ok']));
 
@@ -78,3 +79,13 @@ Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name
 
 Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
 Route::post('/setting/update', [SettingController::class, 'update'])->name('setting.update');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/ujian-handler', [UjianHandlerController::class, 'index'])->name('ujian-handler.index');
+
+    Route::post('/ujian-handler/update-status', [UjianHandlerController::class, 'updateStatus'])
+        ->name('ujian-handler.update-status');
+
+    Route::post('/ujian-handler/update-waktu', [UjianHandlerController::class, 'updateWaktu'])
+        ->name('ujian-handler.update-waktu');
+});

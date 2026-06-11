@@ -39,7 +39,10 @@ class SettingController extends Controller
             ['id' => 1],
             [
                 'max_pelanggaran' => $request->max_pelanggaran,
-                'max_tombol_selesai' => $request->max_tombol_selesai,
+
+                // Menit -> Detik
+                'max_tombol_selesai' => $request->max_tombol_selesai * 60,
+
                 'anti_nyontek' => $request->has('anti_nyontek'),
             ]
         );
