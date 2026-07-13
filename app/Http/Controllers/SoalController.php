@@ -41,15 +41,11 @@ class SoalController extends Controller
     public function store(Request $request, $mapel_id)
     {
         $request->validate([
-            'pertanyaan'      => 'required',
-            'jenis_soal'      => 'required',
-            'gambar_soal'     => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
-            'jawaban'         => 'nullable|array',
-            'gambar_jawaban'  => 'nullable|array',
-            'kunci_jawaban'   => 'nullable',
+            'pertanyaan'    => 'required',
+            'jenis_soal'    => 'required',
+            'jawaban'       => 'nullable|array',
+            'kunci_jawaban' => 'nullable',
         ]);
-
-        $manager = ImageManager::usingDriver(Driver::class);
 
         $soal = new Soal();
         $soal->mapel_id = $mapel_id;
@@ -57,54 +53,16 @@ class SoalController extends Controller
         $soal->jenis_soal = $request->jenis_soal;
         $soal->bobot_nilai = $request->bobot_nilai ?? 1;
 
-        if ($request->hasFile('gambar_soal')) {
-            $file = $request->file('gambar_soal');
-
-            $filename = uniqid('soal_', true) . '.jpg';
-
-            $image = $manager->decode($file->getPathname());
-            $image->scaleDown(width: 800);
-
-            $path = storage_path('app/public/soal/' . $filename);
-
-            if (!file_exists(dirname($path))) {
-                mkdir(dirname($path), 0775, true);
-            }
-
-            $image->save($path, quality: 35);
-
-            $soal->gambar_soal = $filename;
-        }
-
+        // Tidak ada penyimpanan gambar soal manual
         $soal->save();
 
         if ($request->jenis_soal == 'pg' && $request->has('jawaban')) {
             foreach ($request->jawaban as $key => $teks) {
                 $jawaban = new Jawaban();
-
                 $jawaban->soal_id = $soal->id;
                 $jawaban->teks_jawaban = $teks;
                 $jawaban->jawaban_benar = ((string) $request->kunci_jawaban === (string) $key);
-
-                if ($request->hasFile("gambar_jawaban.$key")) {
-                    $fileJwb = $request->file("gambar_jawaban.$key");
-
-                    $filenameJwb = uniqid('jawaban_', true) . '_jwb.jpg';
-
-                    $imageJwb = $manager->decode($fileJwb->getPathname());
-                    $imageJwb->scaleDown(width: 600);
-
-                    $pathJwb = storage_path('app/public/jawaban/' . $filenameJwb);
-
-                    if (!file_exists(dirname($pathJwb))) {
-                        mkdir(dirname($pathJwb), 0775, true);
-                    }
-
-                    $imageJwb->save($pathJwb, quality: 35);
-
-                    $jawaban->gambar_jawaban = $filenameJwb;
-                }
-
+                // Tidak ada penyimpanan gambar jawaban manual
                 $jawaban->save();
             }
         }
@@ -119,20 +77,15 @@ class SoalController extends Controller
     public function edit($id)
     {
         $soal = Soal::with('jawaban')->findOrFail($id);
-
         return view('soal.edit', compact('soal'));
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
-            'pertanyaan'            => 'required',
-            'gambar_soal'           => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
-            'jawaban'               => 'nullable|array',
-            'gambar_jawaban_edit'   => 'nullable|array',
+            'pertanyaan' => 'required',
+            'jawaban'    => 'nullable|array',
         ]);
-
-        $manager = ImageManager::usingDriver(Driver::class);
 
         $soal = Soal::with('jawaban')->findOrFail($id);
 
@@ -141,33 +94,7 @@ class SoalController extends Controller
 
         $soal->pertanyaan = $request->pertanyaan;
 
-        if ($request->has('hapus_gambar_soal') && $soal->gambar_soal) {
-            Storage::disk('public')->delete('soal/' . $soal->gambar_soal);
-            $soal->gambar_soal = null;
-        }
-
-        if ($request->hasFile('gambar_soal')) {
-            if ($soal->gambar_soal) {
-                Storage::disk('public')->delete('soal/' . $soal->gambar_soal);
-            }
-
-            $file = $request->file('gambar_soal');
-            $filename = uniqid('soal_', true) . '.jpg';
-
-            $image = $manager->decode($file->getPathname());
-            $image->scaleDown(width: 800);
-
-            $path = storage_path('app/public/soal/' . $filename);
-
-            if (!file_exists(dirname($path))) {
-                mkdir(dirname($path), 0775, true);
-            }
-
-            $image->save($path, quality: 35);
-
-            $soal->gambar_soal = $filename;
-        }
-
+        // Tidak ada update gambar soal manual
         $soal->save();
 
         if ($request->has('jawaban')) {
@@ -182,34 +109,7 @@ class SoalController extends Controller
 
                 $jawaban->teks_jawaban = $teks;
                 $jawaban->jawaban_benar = ((string) $request->kunci_jawaban === (string) $jawabanId);
-
-                if (isset($request->hapus_gambar_jawaban[$jawabanId]) && $jawaban->gambar_jawaban) {
-                    Storage::disk('public')->delete('jawaban/' . $jawaban->gambar_jawaban);
-                    $jawaban->gambar_jawaban = null;
-                }
-
-                if ($request->hasFile("gambar_jawaban_edit.$jawabanId")) {
-                    if ($jawaban->gambar_jawaban) {
-                        Storage::disk('public')->delete('jawaban/' . $jawaban->gambar_jawaban);
-                    }
-
-                    $fileJwb = $request->file("gambar_jawaban_edit.$jawabanId");
-                    $filenameJwb = uniqid('jawaban_', true) . '_jwb.jpg';
-
-                    $imageJwb = $manager->decode($fileJwb->getPathname());
-                    $imageJwb->scaleDown(width: 600);
-
-                    $pathJwb = storage_path('app/public/jawaban/' . $filenameJwb);
-
-                    if (!file_exists(dirname($pathJwb))) {
-                        mkdir(dirname($pathJwb), 0775, true);
-                    }
-
-                    $imageJwb->save($pathJwb, quality: 35);
-
-                    $jawaban->gambar_jawaban = $filenameJwb;
-                }
-
+                // Tidak ada update gambar jawaban manual
                 $jawaban->save();
             }
         }
@@ -237,44 +137,20 @@ class SoalController extends Controller
         $soal = Soal::with('jawaban')->findOrFail($id);
 
         $allHtml = [];
-
         $allHtml[] = $soal->pertanyaan;
-
         foreach ($soal->jawaban as $jw) {
             $allHtml[] = $jw->teks_jawaban;
         }
 
-        if ($soal->gambar_soal) {
-            Storage::disk('public')->delete(
-                'soal/' . $soal->gambar_soal
-            );
-        }
-
-        foreach ($soal->jawaban as $jw) {
-
-            if ($jw->gambar_jawaban) {
-
-                Storage::disk('public')->delete(
-                    'jawaban/' . $jw->gambar_jawaban
-                );
-            }
-        }
+        // Tidak ada penghapusan file gambar manual (karena tidak disimpan)
+        // Hanya hapus gambar yang diupload via editor jika tidak terpakai
 
         $editorImages = $this->getEditorImagesFromMultipleHtml($allHtml);
-
         $soalId = $soal->id;
-
         $soal->delete();
 
         foreach ($editorImages as $filename) {
-
-            if (
-                !$this->isEditorImageUsedInDatabase(
-                    $filename,
-                    $soalId
-                )
-            ) {
-
+            if (!$this->isEditorImageUsedInDatabase($filename, $soalId)) {
                 $this->deleteEditorImageFile($filename);
             }
         }
@@ -283,11 +159,10 @@ class SoalController extends Controller
 
         return redirect()
             ->back()
-            ->with(
-                'success',
-                'Soal berhasil dihapus!'
-            );
+            ->with('success', 'Soal berhasil dihapus!');
     }
+
+    // ========== TINYMCE UPLOAD ==========
 
     public function uploadTinyMceImage(Request $request)
     {
@@ -298,26 +173,19 @@ class SoalController extends Controller
         $manager = ImageManager::usingDriver(Driver::class);
 
         $file = $request->file('file');
-
         $type = $request->get('type', 'soal');
-
-        $prefix = $type === 'jawaban'
-            ? 'jawaban_'
-            : 'soal_';
-
+        $prefix = $type === 'jawaban' ? 'jawaban_' : 'soal_';
         $filename = uniqid($prefix, true) . '.jpg';
 
         $image = $manager->decode($file->getPathname());
         $image->scaleDown(width: 900);
 
         $folder = storage_path('app/public/dokumen/gambar');
-
         if (!file_exists($folder)) {
             mkdir($folder, 0775, true);
         }
 
         $path = $folder . '/' . $filename;
-
         $image->save($path, quality: 45);
 
         return response()->json([
@@ -325,10 +193,11 @@ class SoalController extends Controller
         ]);
     }
 
+    // ========== PEMBERSIHAN GAMBAR EDITOR ==========
+
     private function getEditorImagesFromHtml(?string $html): array
     {
         preg_match_all('/storage\/dokumen\/gambar\/([^"\']+)/', $html ?? '', $matches);
-
         return collect($matches[1] ?? [])
             ->map(fn($file) => basename($file))
             ->unique()
@@ -339,21 +208,15 @@ class SoalController extends Controller
     private function getEditorImagesFromMultipleHtml(array $htmlList): array
     {
         $images = [];
-
         foreach ($htmlList as $html) {
             $images = array_merge($images, $this->getEditorImagesFromHtml($html));
         }
-
-        return collect($images)
-            ->unique()
-            ->values()
-            ->toArray();
+        return collect($images)->unique()->values()->toArray();
     }
 
     private function deleteEditorImageFile(string $filename): void
     {
         $path = storage_path('app/public/dokumen/gambar/' . $filename);
-
         if (File::exists($path)) {
             File::delete($path);
         }
@@ -377,7 +240,6 @@ class SoalController extends Controller
     {
         $oldImages = $this->getEditorImagesFromHtml($oldHtml);
         $newImages = $this->getEditorImagesFromHtml($newHtml);
-
         $deletedImages = array_diff($oldImages, $newImages);
 
         foreach ($deletedImages as $filename) {
@@ -390,14 +252,12 @@ class SoalController extends Controller
     private function cleanOrphanEditorImages(): void
     {
         $folder = storage_path('app/public/dokumen/gambar');
-
         if (!is_dir($folder)) {
             return;
         }
 
         foreach (glob($folder . '/*') as $filePath) {
             $filename = basename($filePath);
-
             if (!$this->isEditorImageUsedInDatabase($filename)) {
                 File::delete($filePath);
             }

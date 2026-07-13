@@ -32,25 +32,16 @@
                 </div>
 
                 <div class="card-body p-4">
-                    <form action="{{ route('soal.store', $mapel->id) }}"
-                          method="POST"
-                          enctype="multipart/form-data">
+                    {{-- Hapus enctype karena tidak ada upload file manual --}}
+                    <form action="{{ route('soal.store', $mapel->id) }}" method="POST">
                         @csrf
 
                         <div class="form-group mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="section-title m-0">Pertanyaan</label>
                             </div>
-
                             <textarea name="pertanyaan" id="editor_tambah" class="form-control mb-3"></textarea>
-
-                            <label class="upload-area mt-3">
-                                <input type="file" name="gambar_soal" class="hidden-input" onchange="updateLabel(this)">
-                                <i class="fas fa-image text-primary mb-2 d-block" style="font-size: 24px;"></i>
-                                <span class="file-label font-weight-bold small text-uppercase text-primary">
-                                    Lampirkan Gambar Soal Manual (Opsional)
-                                </span>
-                            </label>
+                            {{-- Bagian upload gambar soal dihapus --}}
                         </div>
 
                         <div id="section-pg" class="mb-4">
@@ -60,13 +51,29 @@
                             </div>
 
                             @foreach(['A', 'B', 'C', 'D', 'E'] as $i => $l)
-                                <x-pg-item
-                                    :label="$l"
-                                    :value="$i"
-                                    textareaName="jawaban[]"
-                                    textareaClass="input-jawaban"
-                                    fileName="gambar_jawaban[]"
-                                />
+                                <div class="pg-item mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <div class="mr-3 mt-1">
+                                            <div class="custom-control custom-radio">
+                                                <input type="radio"
+                                                       name="kunci_jawaban"
+                                                       value="{{ $i }}"
+                                                       class="custom-control-input"
+                                                       id="kunci_{{ $i }}">
+                                                <label class="custom-control-label font-weight-bold" for="kunci_{{ $i }}">
+                                                    {{ $l }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <textarea name="jawaban[]"
+                                                      class="form-control input-jawaban"
+                                                      id="jawaban_{{ $i }}"
+                                                      placeholder="Tulis jawaban {{ $l }}"></textarea>
+                                            {{-- Input file untuk gambar jawaban dihapus --}}
+                                        </div>
+                                    </div>
+                                </div>
                             @endforeach
                         </div>
 
@@ -95,7 +102,6 @@
                                 <small class="text-muted">Daftar soal tersimpan</small>
                             </div>
                         </div>
-
                         <span class="badge badge-primary badge-pill px-3 py-2">
                             {{ count($soals) }} Soal
                         </span>
@@ -169,7 +175,6 @@
         return String(text).replace(/\(■\((.*?)\)\)/g, function(match, content) {
             let rows = content.split('@');
             let latexRows = rows.map(row => row.split('&').join(' & '));
-
             return '\\begin{bmatrix}' + latexRows.join(' \\\\ ') + '\\end{bmatrix}';
         });
     }
@@ -183,11 +188,9 @@
 
     function insertPlainText(editor, text) {
         text = cleanPasteText(text);
-
         editor.insertContent(
             escapeHtml(text).replace(/\n/g, '<br>')
         );
-
         editor.save();
         setTimeout(renderMath, 150);
     }
@@ -208,7 +211,6 @@
             e.preventDefault();
 
             let allEditors = [];
-
             $('.input-jawaban').each(function () {
                 let instance = tinymce.get(this.id);
                 if (instance) {
@@ -228,15 +230,12 @@
             setTimeout(renderMath, 150);
             return true;
         }
-
         return false;
     }
 
     const baseConfig = {
         menubar: false,
-
         plugins: 'lists link code table emoticons image',
-
         toolbar: `
             bold italic underline |
             forecolor backcolor |
@@ -245,7 +244,6 @@
             removeformat |
             code
         `,
-
         paste_as_text: false,
         paste_data_images: true,
         automatic_uploads: true,
@@ -256,26 +254,14 @@
 
         images_upload_handler: function (blobInfo, progress) {
             return new Promise((resolve, reject) => {
-
                 const formData = new FormData();
-
                 const activeEditor = tinymce.activeEditor;
-
                 const isJawaban =
-                    activeEditor.getElement().classList.contains('input-jawaban')
-                    ||
+                    activeEditor.getElement().classList.contains('input-jawaban') ||
                     activeEditor.getElement().classList.contains('edit-tiny-jawaban');
 
-                formData.append(
-                    'file',
-                    blobInfo.blob(),
-                    blobInfo.filename()
-                );
-
-                formData.append(
-                    'type',
-                    isJawaban ? 'jawaban' : 'soal'
-                );
+                formData.append('file', blobInfo.blob(), blobInfo.filename());
+                formData.append('type', isJawaban ? 'jawaban' : 'soal');
 
                 fetch("{{ route('soal.tinymce.upload') }}", {
                     method: 'POST',
@@ -310,7 +296,6 @@
                 font-size: 14px;
                 line-height: 1.6;
             }
-
             img {
                 max-width: 100%;
                 height: auto;
@@ -321,7 +306,6 @@
             if (args.content.includes('<img')) {
                 return;
             }
-
             let plainText = $('<div>').html(args.content).text();
             args.content = cleanPasteText(plainText);
         },
@@ -329,27 +313,17 @@
         setup: function(editor) {
             editor.on('paste', function(e) {
                 const clipboard = e.clipboardData || window.clipboardData;
-
-                if (!clipboard) {
-                    return;
-                }
+                if (!clipboard) return;
 
                 const hasImage = Array.from(clipboard.items || []).some(item => {
                     return item.type && item.type.indexOf('image') === 0;
                 });
+                if (hasImage) return;
 
-                if (hasImage) {
-                    return;
-                }
-
-                const text =
-                    clipboard.getData('text/plain')
-                    || clipboard.getData('text')
-                    || '';
+                const text = clipboard.getData('text/plain') || clipboard.getData('text') || '';
 
                 if (editor.getElement().classList.contains('input-jawaban')) {
                     let handled = handlePasteSplit(editor, e);
-
                     if (!handled) {
                         e.preventDefault();
                         insertPlainText(editor, text);
@@ -367,25 +341,6 @@
         }
     };
 
-    function updateLabel(input) {
-        if (input.files[0]) {
-            $(input)
-                .closest('.card-body, .modal-body')
-                .find('.file-label')
-                .text(input.files[0].name);
-        }
-    }
-
-    function updateLabelSmall(input) {
-        if (input.files[0]) {
-            $(input)
-                .closest('.pg-item, .edit-jw-card')
-                .find('.file-status')
-                .text(input.files[0].name)
-                .fadeIn();
-        }
-    }
-
     function deleteSoal(id) {
         Swal.fire({
             title: 'Hapus Soal?',
@@ -400,7 +355,6 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 document.getElementById('delete-form-' + id).submit();
-
                 Toast.fire({
                     icon: 'info',
                     title: 'Sedang menghapus...'
@@ -459,7 +413,6 @@
         @if(session('highlight'))
             setTimeout(() => {
                 const el = document.getElementById('soal-{{ session('highlight') }}');
-
                 if (el) {
                     el.scrollIntoView({
                         behavior: 'smooth',

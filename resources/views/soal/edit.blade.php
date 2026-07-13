@@ -47,30 +47,6 @@
         border: 1px solid #e3e6f0 !important;
     }
 
-    .upload-area {
-        display: block;
-        cursor: pointer;
-        background: #f8f9fc;
-        border: 2px dashed #d1d3e2;
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        transition: .3s;
-    }
-
-    .upload-area:hover {
-        border-color: #4e73df;
-        background: #f1f3f9;
-    }
-
-    .hidden-input {
-        display: none;
-    }
-
-    .file-status {
-        display: none;
-    }
-
     .preview-image {
         max-height: 150px;
         object-fit: contain;
@@ -92,204 +68,87 @@
 
         <!-- HEADER -->
         <div class="card-header bg-white border-0 py-4 px-4">
-
             <div class="d-flex align-items-center">
-
                 <div class="bg-primary text-white rounded-circle mr-3 d-flex align-items-center justify-content-center"
                      style="width:45px;height:45px;">
-
                     <i class="fas fa-edit"></i>
-
                 </div>
-
                 <div>
-
                     <h4 class="font-weight-bold mb-1">
                         Edit Soal
                     </h4>
-
                     <small class="text-muted">
-                        Perbarui pertanyaan, jawaban, dan gambar
+                        Perbarui pertanyaan dan jawaban
                     </small>
-
                 </div>
-
             </div>
-
         </div>
 
         <!-- BODY -->
         <div class="card-body p-4">
 
-            <form action="{{ route('soal.update', $soal->id) }}"
-                  method="POST"
-                  enctype="multipart/form-data">
-
+            {{-- Hapus enctype karena tidak ada upload file manual --}}
+            <form action="{{ route('soal.update', $soal->id) }}" method="POST">
                 @csrf
                 @method('PUT')
 
                 <!-- PERTANYAAN -->
                 <div class="form-group mb-5">
-
-                    <label class="section-title mb-3">
-                        Pertanyaan
-                    </label>
-
+                    <label class="section-title mb-3">Pertanyaan</label>
                     <textarea name="pertanyaan"
                               id="editor_edit_soal"
                               class="form-control">{!! $soal->pertanyaan !!}</textarea>
-
-                    <!-- UPLOAD GAMBAR -->
-                    <label class="upload-area mt-3">
-
-                        <input type="file"
-                               name="gambar_soal"
-                               class="hidden-input"
-                               onchange="updateLabel(this)">
-
-                        <i class="fas fa-image text-primary mb-2 d-block"
-                           style="font-size:24px;"></i>
-
-                        <span class="file-label font-weight-bold small text-uppercase text-primary">
-                            Ganti / Tambah Gambar Soal
-                        </span>
-
-                    </label>
-
-                    <!-- PREVIEW GAMBAR LAMA -->
-                    @if($soal->gambar_soal)
-
-                    <div class="mt-4 p-3 border rounded bg-light">
-
-                        <img src="{{ asset('storage/soal/' . $soal->gambar_soal) }}"
-                             class="img-thumbnail preview-image bank-image mb-3">
-
-                        <div class="custom-control custom-checkbox">
-
-                            <input type="checkbox"
-                                   class="custom-control-input"
-                                   id="hapus_gambar_soal"
-                                   name="hapus_gambar_soal">
-
-                            <label class="custom-control-label text-danger small font-weight-bold"
-                                   for="hapus_gambar_soal">
-
-                                Hapus gambar soal
-
-                            </label>
-
-                        </div>
-
-                    </div>
-
-                    @endif
-
+                    {{-- Tidak ada upload gambar soal manual --}}
                 </div>
 
                 <!-- JAWABAN -->
                 <div class="mb-4">
-
-                    <label class="section-title mb-3">
-                        Pilihan Jawaban
-                    </label>
+                    <label class="section-title mb-3">Pilihan Jawaban</label>
 
                     @foreach($soal->jawaban as $i => $jw)
-
                     <div class="edit-jw-card shadow-sm mb-4">
-
                         <div class="d-flex align-items-start">
 
                             <!-- RADIO -->
                             <div class="mr-3 pt-2">
-
                                 <input type="radio"
                                        name="kunci_jawaban"
                                        value="{{ $jw->id }}"
                                        {{ $jw->jawaban_benar ? 'checked' : '' }}
                                        required>
-
                             </div>
 
                             <!-- LABEL -->
                             <div class="mr-3">
-
                                 <div class="answer-badge bg-primary text-white">
                                     {{ chr(65+$i) }}
                                 </div>
-
                             </div>
 
                             <!-- CONTENT -->
                             <div class="flex-grow-1">
-
                                 <textarea name="jawaban[{{ $jw->id }}]"
                                           id="ed_jw_{{ $jw->id }}"
                                           class="form-control edit-tiny-jawaban">{!! $jw->teks_jawaban !!}</textarea>
-
-                                <!-- PREVIEW GAMBAR JAWABAN -->
-                                @if($jw->gambar_jawaban)
-
-                                <div class="mt-3">
-
-                                    <img src="{{ asset('storage/jawaban/' . $jw->gambar_jawaban) }}"
-                                         class="img-thumbnail preview-image bank-image">
-
-                                </div>
-
-                                @endif
-
-                                <!-- UPLOAD -->
-                                <div class="mt-3">
-
-                                    <label class="mb-0"
-                                           style="cursor:pointer;">
-
-                                        <input type="file"
-                                               name="gambar_jawaban_edit[{{ $jw->id }}]"
-                                               class="hidden-input"
-                                               onchange="updateLabelSmall(this)">
-
-                                        <small class="text-primary font-weight-bold">
-
-                                            <i class="fas fa-camera mr-1"></i>
-                                            Ganti Gambar
-
-                                        </small>
-
-                                    </label>
-
-                                    <span class="file-status small ml-2 text-success font-weight-bold"></span>
-
-                                </div>
-
+                                {{-- Tidak ada upload gambar jawaban manual --}}
                             </div>
 
                         </div>
-
                     </div>
-
                     @endforeach
-
                 </div>
 
                 <!-- BUTTON -->
                 <div class="text-right border-top pt-4">
-
                     <a href="{{ url()->previous() }}"
                        class="btn btn-light rounded-pill px-4 mr-2">
-
                         Kembali
-
                     </a>
-
                     <button type="submit"
                             class="btn btn-primary rounded-pill px-5 shadow">
-
                         <i class="fas fa-save mr-2"></i>
                         Simpan Perubahan
-
                     </button>
-
                 </div>
 
             </form>
@@ -324,133 +183,49 @@ window.MathJax = {
 <script>
 
 function renderMath() {
-
     if (window.MathJax && MathJax.typesetPromise) {
-
         MathJax.typesetPromise().catch(function(err) {
             console.log(err);
         });
-
     }
-
 }
 
 function escapeHtml(text) {
-
     return String(text)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-
 }
 
 function convertWordMatrixToLatex(text) {
-
-    return String(text).replace(
-        /\(■\((.*?)\)\)/g,
-        function(match, content) {
-
-            let rows = content.split('@');
-
-            let latexRows = rows.map(row => {
-                return row.split('&').join(' & ');
-            });
-
-            return '\\begin{bmatrix}'
-                + latexRows.join(' \\\\ ')
-                + '\\end{bmatrix}';
-
-        }
-    );
-
+    return String(text).replace(/\(■\((.*?)\)\)/g, function(match, content) {
+        let rows = content.split('@');
+        let latexRows = rows.map(row => row.split('&').join(' & '));
+        return '\\begin{bmatrix}' + latexRows.join(' \\\\ ') + '\\end{bmatrix}';
+    });
 }
 
 function cleanPasteText(text) {
-
     text = String(text || '');
-
-    text = text.replace(/\r\n/g, '\n');
-    text = text.replace(/\r/g, '\n');
-
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     text = convertWordMatrixToLatex(text);
-
     return text;
-
 }
 
 function insertPlainText(editor, text) {
-
     text = cleanPasteText(text);
-
     editor.insertContent(
         escapeHtml(text).replace(/\n/g, '<br>')
     );
-
     editor.save();
-
     setTimeout(renderMath, 150);
-
-}
-
-function updateLabel(input) {
-
-    if (input.files[0]) {
-
-        $(input)
-            .closest('.form-group')
-            .find('.file-label')
-            .text(input.files[0].name);
-
-        const reader = new FileReader();
-
-        reader.onload = function(e) {
-
-            if ($('#previewNewSoal').length === 0) {
-
-                $('.upload-area').after(`
-                    <div class="mt-3">
-                        <img id="previewNewSoal"
-                             class="img-thumbnail preview-image">
-                    </div>
-                `);
-
-            }
-
-            $('#previewNewSoal').attr('src', e.target.result);
-
-        }
-
-        reader.readAsDataURL(input.files[0]);
-
-    }
-
-}
-
-function updateLabelSmall(input) {
-
-    if (input.files[0]) {
-
-        $(input)
-            .closest('.flex-grow-1')
-            .find('.file-status')
-            .text(input.files[0].name)
-            .fadeIn();
-
-    }
-
 }
 
 function handlePasteSplit(editor, e) {
-
     const clipboard = e.clipboardData || window.clipboardData;
-
     if (!clipboard) return false;
 
-    let text =
-        clipboard.getData('text/plain')
-        || clipboard.getData('text')
-        || '';
-
+    let text = clipboard.getData('text/plain') || clipboard.getData('text') || '';
     text = cleanPasteText(text);
 
     let lines = text
@@ -459,49 +234,32 @@ function handlePasteSplit(editor, e) {
         .filter(Boolean);
 
     if (lines.length > 1) {
-
         e.preventDefault();
 
         let allEditors = [];
-
         $('.edit-tiny-jawaban').each(function () {
-
             let instance = tinymce.get(this.id);
-
             if (instance) allEditors.push(instance);
-
         });
 
         lines.forEach((text, i) => {
-
             if (allEditors[i]) {
-
                 allEditors[i].setContent(
                     escapeHtml(text).replace(/\n/g, '<br>')
                 );
-
                 allEditors[i].save();
-
             }
-
         });
 
         setTimeout(renderMath, 150);
-
         return true;
-
     }
-
     return false;
-
 }
 
 const baseConfig = {
-
     menubar: false,
-
     plugins: 'lists link code table emoticons image',
-
     toolbar: `
         bold italic underline |
         forecolor backcolor |
@@ -510,7 +268,6 @@ const baseConfig = {
         removeformat |
         code
     `,
-
     paste_as_text: false,
     paste_data_images: true,
     automatic_uploads: true,
@@ -520,53 +277,36 @@ const baseConfig = {
     images_upload_credentials: true,
 
     images_upload_handler: function (blobInfo, progress) {
-
         return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            const activeEditor = tinymce.activeEditor;
+            const isJawaban =
+                activeEditor.getElement().classList.contains('input-jawaban') ||
+                activeEditor.getElement().classList.contains('edit-tiny-jawaban');
 
-        const formData = new FormData();
+            formData.append('file', blobInfo.blob(), blobInfo.filename());
+            formData.append('type', isJawaban ? 'jawaban' : 'soal');
 
-        const activeEditor = tinymce.activeEditor;
-
-        const isJawaban =
-            activeEditor.getElement().classList.contains('input-jawaban')
-            ||
-            activeEditor.getElement().classList.contains('edit-tiny-jawaban');
-
-        formData.append('file', blobInfo.blob(), blobInfo.filename());
-        formData.append('type', isJawaban ? 'jawaban' : 'soal');
-
-        fetch("{{ route('soal.tinymce.upload') }}", 
-                {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                        'Accept': 'application/json'
-                    }
+            fetch("{{ route('soal.tinymce.upload') }}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                    'Accept': 'application/json'
                 }
-            )
+            })
             .then(response => response.json())
             .then(result => {
-
                 if (result.location) {
-
                     resolve(result.location);
-
                 } else {
-
                     reject('Upload gambar gagal');
-
                 }
-
             })
             .catch(() => {
-
                 reject('Upload gambar gagal');
-
             });
-
         });
-
     },
 
     extended_valid_elements: '*[*]',
@@ -580,7 +320,6 @@ const baseConfig = {
             font-size: 14px;
             line-height: 1.6;
         }
-
         img {
             max-width: 100%;
             height: auto;
@@ -588,86 +327,45 @@ const baseConfig = {
     `,
 
     paste_preprocess: function(plugin, args) {
-
         if (args.content.includes('<img')) {
             return;
         }
-
-        let plainText =
-            $('<div>').html(args.content).text();
-
+        let plainText = $('<div>').html(args.content).text();
         args.content = cleanPasteText(plainText);
-
     },
 
     setup: function(editor) {
-
         editor.on('paste', function(e) {
-
-            const clipboard =
-                e.clipboardData || window.clipboardData;
-
+            const clipboard = e.clipboardData || window.clipboardData;
             if (!clipboard) return;
 
-            const hasImage = Array.from(
-                clipboard.items || []
-            ).some(item => {
-
-                return item.type &&
-                       item.type.indexOf('image') === 0;
-
+            const hasImage = Array.from(clipboard.items || []).some(item => {
+                return item.type && item.type.indexOf('image') === 0;
             });
+            if (hasImage) return;
 
-            if (hasImage) {
-                return;
-            }
+            const text = clipboard.getData('text/plain') || clipboard.getData('text') || '';
 
-            const text =
-                clipboard.getData('text/plain')
-                || clipboard.getData('text')
-                || '';
-
-            if (
-                editor.getElement()
-                .classList
-                .contains('edit-tiny-jawaban')
-            ) {
-
-                let handled =
-                    handlePasteSplit(editor, e);
-
+            if (editor.getElement().classList.contains('edit-tiny-jawaban')) {
+                let handled = handlePasteSplit(editor, e);
                 if (!handled) {
-
                     e.preventDefault();
-
                     insertPlainText(editor, text);
-
                 }
-
             } else {
-
                 e.preventDefault();
-
                 insertPlainText(editor, text);
-
             }
-
         });
 
         editor.on('change keyup input SetContent', function () {
-
             editor.save();
-
             setTimeout(renderMath, 150);
-
         });
-
     }
-
 };
 
 $(document).ready(function () {
-
     tinymce.init({
         ...baseConfig,
         selector: '#editor_edit_soal',
@@ -681,7 +379,6 @@ $(document).ready(function () {
     });
 
     setTimeout(renderMath, 500);
-
 });
 
 </script>
