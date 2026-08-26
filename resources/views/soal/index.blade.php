@@ -252,38 +252,37 @@
         images_upload_url: "{{ route('soal.tinymce.upload') }}",
         images_upload_credentials: true,
 
-        images_upload_handler: function (blobInfo, progress) {
-            return new Promise((resolve, reject) => {
-                const formData = new FormData();
-                const activeEditor = tinymce.activeEditor;
-                const isJawaban =
-                    activeEditor.getElement().classList.contains('input-jawaban') ||
-                    activeEditor.getElement().classList.contains('edit-tiny-jawaban');
+images_upload_handler: function (blobInfo, progress) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        const activeEditor = tinymce.activeEditor;
+        const isJawaban = activeEditor.getElement().classList.contains('input-jawaban') || 
+                          activeEditor.getElement().classList.contains('edit-tiny-jawaban');
 
-                formData.append('file', blobInfo.blob(), blobInfo.filename());
-                formData.append('type', isJawaban ? 'jawaban' : 'soal');
+        formData.append('file', blobInfo.blob(), blobInfo.filename());
+        formData.append('type', isJawaban ? 'jawaban' : 'soal');
 
-                fetch("{{ route('soal.tinymce.upload') }}", {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.location) {
-                        resolve(result.location);
-                    } else {
-                        reject('Upload gambar gagal');
-                    }
-                })
-                .catch(() => {
-                    reject('Upload gambar gagal');
-                });
-            });
-        },
+        fetch("{{ route('soal.tinymce.upload') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.location) {
+                resolve(result.location);
+            } else {
+                reject('Upload gambar gagal');
+            }
+        })
+        .catch(() => {
+            reject('Upload gambar gagal');
+        });
+    });
+},
 
         extended_valid_elements: '*[*]',
         valid_elements: '*[*]',

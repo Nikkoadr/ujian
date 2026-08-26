@@ -14,11 +14,16 @@ return new class extends Migration
         Schema::create('soal', function (Blueprint $table) {
             $table->id();
             $table->foreignId('mapel_id')->constrained('mapel')->onDelete('cascade');
-            $table->text('pertanyaan')->nullable();
+            $table->text('pertanyaan'); // NOT NULL
             $table->string('gambar_soal')->nullable();
             $table->enum('jenis_soal', ['pg', 'essay'])->default('pg');
             $table->integer('bobot_nilai')->default(1);
+            $table->unsignedBigInteger('kunci_jawaban_id')->nullable(); // FK akan ditambahkan nanti
             $table->timestamps();
+
+            // Index untuk performa query
+            $table->index('mapel_id');
+            $table->index('jenis_soal');
         });
     }
 

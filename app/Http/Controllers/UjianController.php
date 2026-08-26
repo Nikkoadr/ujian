@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\UjianPartisipasi;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Storage;
 
 class UjianController extends Controller
 {
@@ -87,14 +88,14 @@ class UjianController extends Controller
                     'id' => $s->id,
                     'nomor' => $index + 1,
                     'pertanyaan' => $s->pertanyaan,
-                    'gambar_soal' => $s->gambar_soal ? asset('storage/soal/' . $s->gambar_soal) : null,
+                    'gambar_soal' => $s->gambar_soal ? Storage::disk('r2')->url( $s->gambar_soal) : null,
                     'jawaban_terpilih' => $p ? $p->jawaban_id : null,
                     'is_ragu' => $p ? (bool)$p->is_ragu : false,
                     'pilihan' => $s->jawaban->map(fn($j, $i) => [
                         'db_id' => $j->id,
                         'label' => chr(65 + $i),
                         'teks' => $j->teks_jawaban,
-                        'gambar' => $j->gambar_jawaban ? asset('storage/jawaban/' . $j->gambar_jawaban) : null
+                        'gambar' => $j->gambar_jawaban ? Storage::disk('r2')->url( $j->gambar_jawaban) : null
                     ])
                 ];
             });

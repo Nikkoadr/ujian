@@ -14,7 +14,7 @@ RUN npm run build
 # =========================
 # STAGE 2: PHP + Laravel
 # =========================
-FROM dunglas/frankenphp:1-php8.4
+FROM dunglas/frankenphp:1-php8.5
 
 # Install dependency system
 RUN apt-get update && apt-get install -y \
@@ -45,32 +45,26 @@ RUN echo "memory_limit=1024M" > /usr/local/etc/php/conf.d/custom-limits.ini \
     && echo "max_execution_time=300" >> /usr/local/etc/php/conf.d/custom-limits.ini \
     && echo "max_input_time=300" >> /usr/local/etc/php/conf.d/custom-limits.ini \
     && echo "max_file_uploads=100" >> /usr/local/etc/php/conf.d/custom-limits.ini
-# Composer
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Install dependency Laravel
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-scripts --no-autoloader
+RUN composer install --no-dev --prefer-dist --no-scripts --no-autoloader --ignore-platform-reqs
 
-# Copy project
 COPY . .
 
-# Copy hasil build frontend
 COPY --from=asset-builder /app/public/build ./public/build
 
-# Optimasi Laravel
 RUN composer dump-autoload --optimize --no-dev
 
-# Permission (penting untuk K8s)
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8000
 
-# Jalankan Octane dengan setting agresif untuk 2000 user
-# Menggunakan 'auto' pada workers akan menyesuaikan dengan CPU core VM Proxmox Anda
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

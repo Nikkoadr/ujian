@@ -2,13 +2,16 @@
     "agents": [
         "copilot"
     ],
+    "cloud": false,
     "guidelines": true,
     "mcp": true,
     "nightwatch_mcp": false,
     "sail": false,
     "skills": [
+        "infer-conventions",
         "laravel-best-practices",
-        "pest-testing",
+        "testing-best-practices",
+        "octane-development",
         "tailwindcss-development"
     ]
 }

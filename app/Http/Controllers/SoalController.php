@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
-use Illuminate\Support\Facades\File;
 
 class SoalController extends Controller
 {
@@ -53,7 +52,6 @@ class SoalController extends Controller
         $soal->jenis_soal = $request->jenis_soal;
         $soal->bobot_nilai = $request->bobot_nilai ?? 1;
 
-        // Tidak ada penyimpanan gambar soal manual
         $soal->save();
 
         if ($request->jenis_soal == 'pg' && $request->has('jawaban')) {
@@ -62,7 +60,6 @@ class SoalController extends Controller
                 $jawaban->soal_id = $soal->id;
                 $jawaban->teks_jawaban = $teks;
                 $jawaban->jawaban_benar = ((string) $request->kunci_jawaban === (string) $key);
-                // Tidak ada penyimpanan gambar jawaban manual
                 $jawaban->save();
             }
         }
@@ -93,8 +90,6 @@ class SoalController extends Controller
         $oldJawabanHtml = $soal->jawaban->pluck('teks_jawaban')->toArray();
 
         $soal->pertanyaan = $request->pertanyaan;
-
-        // Tidak ada update gambar soal manual
         $soal->save();
 
         if ($request->has('jawaban')) {
@@ -109,7 +104,6 @@ class SoalController extends Controller
 
                 $jawaban->teks_jawaban = $teks;
                 $jawaban->jawaban_benar = ((string) $request->kunci_jawaban === (string) $jawabanId);
-                // Tidak ada update gambar jawaban manual
                 $jawaban->save();
             }
         }
@@ -141,9 +135,6 @@ class SoalController extends Controller
         foreach ($soal->jawaban as $jw) {
             $allHtml[] = $jw->teks_jawaban;
         }
-
-        // Tidak ada penghapusan file gambar manual (karena tidak disimpan)
-        // Hanya hapus gambar yang diupload via editor jika tidak terpakai
 
         $editorImages = $this->getEditorImagesFromMultipleHtml($allHtml);
         $soalId = $soal->id;
@@ -188,8 +179,16 @@ class SoalController extends Controller
         $path = $folder . '/' . $filename;
         $image->save($path, quality: 45);
 
+        // Upload ke R2
+        Storage::disk('r2')->putFileAs('dokumen/gambar', new \Illuminate\Http\File($path), $filename);
+
+        // Hapus file sementara lokal agar server tidak penuh
+        if (file_exists($path)) {
+            unlink($path);
+        }
+
         return response()->json([
-            'location' => asset('storage/dokumen/gambar/' . $filename)
+            'location' => Storage::disk('r2')->url('dokumen/gambar/' . $filename)
         ]);
     }
 
@@ -197,8 +196,9 @@ class SoalController extends Controller
 
     private function getEditorImagesFromHtml(?string $html): array
     {
-        preg_match_all('/storage\/dokumen\/gambar\/([^"\']+)/', $html ?? '', $matches);
-        return collect($matches[1] ?? [])
+        // Mendukung prefix nama file TinyMCE baik dari URL R2 maupun legacy path
+        preg_match_all('/(?:soal_|jawaban_)[a-zA-Z0-9\._\-]+\.jpg/', $html ?? '', $matches);
+        return collect($matches[0] ?? [])
             ->map(fn($file) => basename($file))
             ->unique()
             ->values()
@@ -216,9 +216,9 @@ class SoalController extends Controller
 
     private function deleteEditorImageFile(string $filename): void
     {
-        $path = storage_path('app/public/dokumen/gambar/' . $filename);
-        if (File::exists($path)) {
-            File::delete($path);
+        $r2Path = 'dokumen/gambar/' . $filename;
+        if (Storage::disk('r2')->exists($r2Path)) {
+            Storage::disk('r2')->delete($r2Path);
         }
     }
 
@@ -251,15 +251,12 @@ class SoalController extends Controller
 
     private function cleanOrphanEditorImages(): void
     {
-        $folder = storage_path('app/public/dokumen/gambar');
-        if (!is_dir($folder)) {
-            return;
-        }
+        $files = Storage::disk('r2')->files('dokumen/gambar');
 
-        foreach (glob($folder . '/*') as $filePath) {
+        foreach ($files as $filePath) {
             $filename = basename($filePath);
             if (!$this->isEditorImageUsedInDatabase($filename)) {
-                File::delete($filePath);
+                Storage::disk('r2')->delete($filePath);
             }
         }
     }
