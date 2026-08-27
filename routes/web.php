@@ -14,6 +14,9 @@ use App\Http\Controllers\KelasController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UjianHandlerController;
+use App\Http\Controllers\BankSoalController;
+use App\Http\Controllers\BankPertanyaanController;
+use App\Http\Controllers\PeriodeUjianController;
 
 Route::get('/up', fn() => response()->json(['status' => 'ok']));
 
@@ -54,6 +57,20 @@ Route::post('siswa/{id}/block', [SiswaController::class, 'toggleStatus'])->name(
 
 Route::resource('pengawas', PengawasController::class);
 Route::resource('mapel', MapelController::class);
+Route::resource('periode_ujian', PeriodeUjianController::class);
+
+// Bank Soal resource sudah ada
+Route::resource('bank-soal', BankSoalController::class);
+
+// Nested routes untuk pertanyaan dan jawaban di dalam bank soal
+Route::get('bank-soal/{bank_soal}/pertanyaan', [BankPertanyaanController::class, 'index'])->name('bank-pertanyaan.index');
+Route::post('bank-pertanyaan/{bank_soal_id}', [BankPertanyaanController::class, 'store'])->name('bank-pertanyaan.store');
+Route::get('bank-pertanyaan/{bank_pertanyaan}/edit', [BankPertanyaanController::class, 'edit'])->name('bank-pertanyaan.edit');
+Route::put('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::class, 'update'])->name('bank-pertanyaan.update');
+Route::delete('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::class, 'destroy'])->name('bank-pertanyaan.destroy');
+
+// Upload gambar TinyMCE
+Route::post('bank-pertanyaan/upload-tinymce', [BankPertanyaanController::class, 'uploadTinyMceImage'])->name('bank-pertanyaan.tinymce.upload');
 
 Route::prefix('soal')->name('soal.')->group(function () {
     Route::get('/mapel/{mapel_id}', [SoalController::class, 'index'])->name('index');
@@ -65,6 +82,7 @@ Route::prefix('soal')->name('soal.')->group(function () {
 
     Route::delete('/{id}', [SoalController::class, 'destroy'])->name('destroy');
 });
+
 Route::post('/soal/tinymce-upload', [SoalController::class, 'uploadTinyMceImage'])
     ->name('soal.tinymce.upload');
 
