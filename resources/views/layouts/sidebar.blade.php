@@ -69,10 +69,10 @@
         </a>
     </li>
 
-    <li class="nav-item {{ request()->routeIs('mapel.*') || request()->is('soal/mapel/*') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ route('mapel.index') }}">
+    <li class="nav-item {{ request()->routeIs('jadwal-ujian.*') || request()->is('jadwal-ujian/*') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('jadwal-ujian.index') }}">
             <i class="fas fa-fw fa-book"></i>
-            <span>Mata Pelajaran</span>
+            <span>Jadwal Ujian</span>
         </a>
     </li>
 

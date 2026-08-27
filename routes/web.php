@@ -17,6 +17,7 @@ use App\Http\Controllers\UjianHandlerController;
 use App\Http\Controllers\BankSoalController;
 use App\Http\Controllers\BankPertanyaanController;
 use App\Http\Controllers\PeriodeUjianController;
+use App\Http\Controllers\JadwalUjianController;
 
 Route::get('/up', fn() => response()->json(['status' => 'ok']));
 
@@ -46,7 +47,7 @@ Route::get('/ujian/{id}/selesai', function () {
     return redirect()->route('home')
         ->with('success', 'Ujian sudah selesai.');
 });
-
+Route::resource('jadwal-ujian', JadwalUjianController::class);
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
 

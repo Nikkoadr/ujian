@@ -82,9 +82,6 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <a href="{{ route('periode_ujian.show', $periode->id) }}" class="btn btn-sm btn-info" title="Detail">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
                                         <a href="{{ route('periode_ujian.edit', $periode->id) }}" class="btn btn-sm btn-warning" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
