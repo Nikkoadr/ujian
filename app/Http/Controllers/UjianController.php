@@ -26,13 +26,11 @@ class UjianController extends Controller
      */
     public function showExam(Jadwal $jadwal)
     {
-        // 1. Cek apakah session akses untuk jadwal ini ada dan milik user yang sedang login
         if (session('akses_ujian_' . $jadwal->id) !== Auth::id()) {
             return redirect()->route('home')->with('error', 'Silakan masukkan token ujian terlebih dahulu.');
         }
 
-        // 2. Jika valid, tampilkan view ujian
-        return view('ujian.index_test', compact('jadwal'));
+        return view('ujian.index', compact('jadwal'));
     }
 
     /**
