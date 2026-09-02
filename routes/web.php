@@ -83,14 +83,4 @@ Route::middleware(['auth'])->group(function () {
         ->name('ujian-handler.update-waktu');
 });
 
-Route::middleware(['auth'])->prefix('ujian')->name('ujian.')->group(function () {
-
-    // 2. Halaman mulai pengerjaan ujian (tujuan redirect setelah token valid)
-    Route::get('/mulai/{jadwal_id}', [UjianController::class, 'showExam'])->name('mulai');
-
-    // 3. Endpoint autosave progres pengerjaan soal
-    Route::post('/simpan-progres/{jadwal_id}', [UjianController::class, 'simpanProgres'])->name('simpan.progres');
-
-    // 4. Submit selesai ujian
-    Route::post('/selesai/{jadwal_id}', [UjianController::class, 'selesai'])->name('selesai');
-});
+Route::get('/ujian/{jadwal}/mulai', [UjianController::class, 'showExam'])->name('ujian.mulai');

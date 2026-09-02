@@ -37,7 +37,7 @@
                 <div class="h-8 w-[1px] bg-white/10 hidden sm:block"></div>
                 <form action="{{ route('logout') }}" method="POST">
                     @csrf
-                    <button class="bg-white/10 p-2 rounded-lg hover:bg-red-500 transition-colors">
+                    <button type="submit" class="bg-white/10 p-2 rounded-lg hover:bg-red-500 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -49,9 +49,9 @@
 
     <main class="max-w-7xl mx-auto px-4 py-8">
 
-        @if(isset($error))
+        @if(session('error') || isset($error))
             <div class="mb-8 bg-amber-50 border-2 border-amber-100 p-5 rounded-[2rem] flex items-center gap-4">
-                <div class="text-amber-600 font-bold text-sm">{{ $error }}</div>
+                <div class="text-amber-600 font-bold text-sm">{{ session('error') ?? $error }}</div>
             </div>
         @endif
 
@@ -64,7 +64,7 @@
                 <div>
                     <h2 class="text-lg font-black text-slate-800 tracking-tight">{{ $user->nama }}</h2>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        {{ $kelas->tingkat->nama_tingkat }} | {{ $kelas->kompetensi_keahlian->nama_kompetensi }} | {{ $kelas->nama_kelas }}
+                        {{ $kelas->tingkat->nama_tingkat ?? '' }} | {{ $kelas->kompetensi_keahlian->nama_kompetensi ?? '' }} | {{ $kelas->nama_kelas ?? '' }}
                     </p>
                 </div>
             </div>
@@ -111,12 +111,12 @@
                             <div>
                                 <div class="flex gap-2 items-center">
                                     <span class="px-3 py-1 bg-sky-100 text-sky-700 text-[10px] font-black rounded-lg uppercase tracking-wider"
-                                          x-text="ujian.mapel.kode_mapel"></span>
-                                    <span :class="ujian.mapel.kompetensi_keahlian_id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'"
+                                          x-text="ujian.mapel?.kode_mapel || '-'"></span>
+                                    <span :class="ujian.mapel?.kompetensi_keahlian_id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'"
                                           class="px-2 py-1 text-[9px] font-black rounded-lg uppercase"
-                                          x-text="ujian.mapel.kompetensi_keahlian_id ? 'KK' : 'Umum'"></span>
+                                          x-text="ujian.mapel?.kompetensi_keahlian_id ? 'KK' : 'Umum'"></span>
                                 </div>
-                                <h3 class="text-xl font-bold text-slate-800 mt-2" x-text="ujian.mapel.nama_mapel"></h3>
+                                <h3 class="text-xl font-bold text-slate-800 mt-2" x-text="ujian.mapel?.nama_mapel || '-'"></h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-[10px] font-bold text-slate-400 uppercase">Durasi</p>
@@ -167,7 +167,7 @@
             </template>
 
             <div x-show="filteredUjian.length === 0" class="col-span-full py-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                <p class="font-bold text-slate-400">Tidak ada ujian ditemukan.</p>
+                <p class="font-bold text-slate-400">Tidak ada jadwal ujian aktif.</p>
             </div>
         </div>
     </main>
@@ -182,13 +182,15 @@
                     <p class="text-xs font-bold text-slate-400 mt-2 uppercase" x-text="selectedUjian?.mapel?.nama_mapel"></p>
                 </div>
                 <div class="space-y-6">
-                    <input type="text" x-model="inputToken" placeholder="INPUT TOKEN" maxlength="6"
+                    <input type="text" x-model="inputToken" @keyup.enter="prosesValidasi()" placeholder="INPUT TOKEN" maxlength="6"
                            class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-sky-500 text-center font-black text-xl tracking-[0.3em] uppercase">
-                    <p x-show="errorMessage" x-text="errorMessage" class="text-red-500 text-[10px] font-bold text-center"></p>
+                    
+                    <p x-show="errorMessage" x-text="errorMessage" class="text-red-500 text-xs font-bold text-center"></p>
+
                     <div class="flex gap-3">
-                        <button @click="isModalOpen = false" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase">Batal</button>
-                        <button @click="prosesValidasi()" :disabled="isLoading || !inputToken"
-                                class="flex-[2] py-4 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button type="button" @click="isModalOpen = false" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-colors">Batal</button>
+                        <button type="button" @click="prosesValidasi()" :disabled="isLoading || !inputToken"
+                                class="flex-[2] py-4 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                             <span x-text="isLoading ? 'Memproses...' : 'Masuk Ujian'"></span>
                         </button>
                     </div>
@@ -199,7 +201,7 @@
 
     <script>
         function dashboardHandler() {
-            const ujianData = @json($daftarUjian);
+            const ujianData = @json($daftarUjian ?? []);
 
             return {
                 isModalOpen: false,
@@ -214,16 +216,22 @@
                 init() {
                     setInterval(() => {
                         this.currentTime = Date.now();
-                    }, 250);
+                    }, 1000);
 
                     this.allUjian = ujianData.map(u => ({
                         ...u,
                         mapel: u.mapel || {},
                         durasi_menit: this.convertDuration(u.durasi),
-                        jam_mulai_format: u.jam_mulai ? u.jam_mulai.substring(0, 5) : '--:--',
-                        jam_selesai_format: u.jam_selesai ? u.jam_selesai.substring(0, 5) : '--:--',
+                        jam_mulai_format: this.extractTime(u.jam_mulai),
+                        jam_selesai_format: this.extractTime(u.jam_selesai),
                         partisipasi: Array.isArray(u.partisipasi) ? (u.partisipasi[0] || null) : (u.partisipasi || null)
                     }));
+                },
+
+                extractTime(timeString) {
+                    if (!timeString) return '--:--';
+                    const timeOnly = timeString.includes(' ') ? timeString.split(' ')[1] : timeString;
+                    return timeOnly.substring(0, 5);
                 },
 
                 convertDuration(durasi) {
@@ -246,12 +254,15 @@
 
                 calculateRemaining(ujian) {
                     if (!ujian.partisipasi || !ujian.partisipasi.mulai_ujian) return '00:00';
-                    const startStr = ujian.partisipasi.mulai_ujian.replace(' ', 'T');
+                    const startStr = ujian.partisipasi.mulai_ujian.replace(/-/g, '/');
                     const start = new Date(startStr).getTime();
+                    if (isNaN(start)) return '00:00';
+
                     const durationMs = ujian.durasi_menit * 60 * 1000;
                     const end = start + durationMs;
                     const diff = end - this.currentTime;
                     if (diff <= 0) return 'Waktu Habis';
+
                     const h = Math.floor(diff / 3600000);
                     const m = Math.floor((diff % 3600000) / 60000);
                     const s = Math.floor((diff % 60000) / 1000);
@@ -260,18 +271,20 @@
 
                 isWaktuPartisipasiHabis(ujian) {
                     if (!ujian.partisipasi || !ujian.partisipasi.mulai_ujian) return false;
-                    const startStr = ujian.partisipasi.mulai_ujian.replace(' ', 'T');
+                    const startStr = ujian.partisipasi.mulai_ujian.replace(/-/g, '/');
                     const start = new Date(startStr).getTime();
+                    if (isNaN(start)) return false;
+
                     const durationMs = ujian.durasi_menit * 60 * 1000;
-                    const end = start + durationMs;
-                    return this.currentTime >= end;
+                    return this.currentTime >= (start + durationMs);
                 },
 
                 isUjianBelumMulai(ujian) {
                     if (!ujian.jam_mulai) return false;
                     const now = new Date();
                     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
-                    const waktu = ujian.jam_mulai.substring(0, 5).split(':');
+                    const timeOnly = ujian.jam_mulai.includes(' ') ? ujian.jam_mulai.split(' ')[1] : ujian.jam_mulai;
+                    const waktu = timeOnly.split(':');
                     const mulaiMinutes = (parseInt(waktu[0]) * 60) + parseInt(waktu[1]);
                     return currentMinutes < mulaiMinutes;
                 },
@@ -280,39 +293,13 @@
                     if (!ujian.jam_selesai) return false;
                     const now = new Date();
                     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
-                    const waktu = ujian.jam_selesai.substring(0, 5).split(':');
+                    const timeOnly = ujian.jam_selesai.includes(' ') ? ujian.jam_selesai.split(' ')[1] : ujian.jam_selesai;
+                    const waktu = timeOnly.split(':');
                     const selesaiMinutes = (parseInt(waktu[0]) * 60) + parseInt(waktu[1]);
                     return currentMinutes >= selesaiMinutes;
                 },
 
                 openModal(ujian) {
-                    if (this.isWaktuPartisipasiHabis(ujian)) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Waktu Habis',
-                            text: 'Waktu ujian sudah habis.',
-                            confirmButtonColor: '#0ea5e9'
-                        });
-                        return;
-                    }
-                    if (!ujian.partisipasi && this.isUjianTerlewat(ujian)) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Terlewat',
-                            text: 'Waktu ujian sudah terlewat.',
-                            confirmButtonColor: '#0ea5e9'
-                        });
-                        return;
-                    }
-                    if (!ujian.partisipasi && this.isUjianBelumMulai(ujian)) {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Belum Dimulai',
-                            text: 'Ujian belum dimulai.',
-                            confirmButtonColor: '#0ea5e9'
-                        });
-                        return;
-                    }
                     this.selectedUjian = ujian;
                     this.inputToken = '';
                     this.errorMessage = '';
@@ -325,17 +312,7 @@
                         return;
                     }
                     if (!this.inputToken || this.inputToken.length !== 6) {
-                        this.errorMessage = 'Token harus 6 karakter.';
-                        return;
-                    }
-                    if (this.isWaktuPartisipasiHabis(this.selectedUjian)) {
-                        this.isModalOpen = false;
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Waktu Habis',
-                            text: 'Waktu ujian sudah habis.',
-                            confirmButtonColor: '#0ea5e9'
-                        });
+                        this.errorMessage = 'Token harus terdiri dari 6 karakter.';
                         return;
                     }
 
@@ -348,7 +325,7 @@
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                             },
                             body: JSON.stringify({
                                 ujian_id: this.selectedUjian.id,
@@ -358,21 +335,16 @@
 
                         const result = await response.json();
 
-                    if (result.success) {
-                        window.location.href = result.redirect;
-                    } else {
-                        this.errorMessage = result.message || 'Token tidak valid';
-                        this.inputToken = '';
-                    }
+                        if (response.ok && result.success) {
+                            // Redirect langsung ke lembar ujian
+                            window.location.href = result.redirect;
+                        } else {
+                            this.errorMessage = result.message || 'Token tidak valid.';
+                            this.inputToken = '';
+                        }
                     } catch (error) {
-                        console.error(error);
-                        await Swal.fire({
-                            icon: 'error',
-                            title: 'Koneksi Error',
-                            text: 'Terjadi kesalahan koneksi. Periksa internet Anda.',
-                            confirmButtonColor: '#ef4444'
-                        });
-                        this.errorMessage = 'Terjadi kesalahan koneksi.';
+                        console.error('Fetch Error:', error);
+                        this.errorMessage = 'Terjadi gangguan jaringan saat memverifikasi token.';
                     } finally {
                         this.isLoading = false;
                     }
@@ -380,6 +352,5 @@
             }
         }
     </script>
-
 </body>
 </html>

@@ -90,18 +90,18 @@ class TokenController extends Controller
             'token'    => 'required|string|size:6'
         ]);
 
-        $jadwal = Jadwal::with('mapel')->find($request->ujian_id);
+        $jadwal = Jadwal::find($request->ujian_id);
 
         if (!$jadwal || $jadwal->status !== 'aktif') {
             return response()->json([
                 'success' => false,
-                'message' => 'Jadwal ujian tidak aktif.'
+                'message' => 'Jadwal ujian sedang tidak aktif.'
             ], 403);
         }
 
         $sekarang = Carbon::now();
 
-        // Normalisasi format tanggal & jam agar tidak terjadi double date
+        // Normalisasi format tanggal dan jam
         $tglStr = Carbon::parse($jadwal->tanggal_ujian)->format('Y-m-d');
         $jamMulaiStr = Carbon::parse($jadwal->jam_mulai)->format('H:i:s');
         $jamSelesaiStr = Carbon::parse($jadwal->jam_selesai)->format('H:i:s');
@@ -109,15 +109,15 @@ class TokenController extends Controller
         $mulai   = Carbon::parse($tglStr . ' ' . $jamMulaiStr);
         $selesai = Carbon::parse($tglStr . ' ' . $jamSelesaiStr);
 
-        // Cek apakah hari ini sesuai dengan tanggal ujian
+        // Cek tanggal pengerjaan
         if (!$sekarang->isSameDay(Carbon::parse($tglStr))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ujian tidak tersedia hari ini.'
+                'message' => 'Ujian tidak dijadwalkan untuk hari ini.'
             ], 403);
         }
 
-        // Cek belum mulai
+        // Cek jam belum mulai
         if ($sekarang->lt($mulai)) {
             return response()->json([
                 'success' => false,
@@ -125,7 +125,7 @@ class TokenController extends Controller
             ], 403);
         }
 
-        // Cek sudah selesai
+        // Cek jam sudah selesai
         if ($sekarang->gte($selesai)) {
             return response()->json([
                 'success' => false,
@@ -133,24 +133,16 @@ class TokenController extends Controller
             ], 403);
         }
 
-        // Validasi token
-        if (strcasecmp($jadwal->token, $request->token) === 0) {
+        // Validasi kesesuaian token
+        if (strtoupper($jadwal->token) === strtoupper($request->token)) {
+            // Set session akses khusus user dan jadwal ini
             session(['akses_ujian_' . $jadwal->id => Auth::id()]);
-
-            // WAJIB: Paksa simpan sesi agar terbawa saat AJAX redirect
             session()->save();
 
-            // Log untuk debugging
-            Log::info('Token valid, redirect ke ujian', [
-                'jadwal_id' => $jadwal->id,
-                'user_id' => Auth::id(),
-                'redirect_url' => route('ujian.mulai', ['jadwal_id' => $jadwal->id])
-            ]);
-
             return response()->json([
-                'success' => true,
-                'message' => 'Token Valid!',
-                'redirect' => route('ujian.mulai', ['jadwal_id' => $jadwal->id])
+                'success'  => true,
+                'message'  => 'Token Valid!',
+                'redirect' => route('ujian.mulai', ['jadwal' => $jadwal->id])
             ]);
         }
 
