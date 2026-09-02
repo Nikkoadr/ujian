@@ -30,6 +30,6 @@ class Soal extends Model
     // Relasi many-to-many dengan bank_pertanyaan
     public function bankPertanyaan()
     {
-        return $this->belongsToMany(Bank_pertanyaan::class, 'soal_bank_pertanyaan');
+        return $this->belongsToMany(BankPertanyaan::class, 'soal_bank_pertanyaan');
     }
 }

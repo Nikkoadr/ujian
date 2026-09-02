@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Soal;
-use App\Models\PeriodeUjian;
 use App\Models\Jadwal;
-use App\Models\Mapel;
-use App\Models\Bank_pertanyaan;
+use App\Models\BankPertanyaan;
 use Illuminate\Http\Request;
 
 class SoalController extends Controller
@@ -38,7 +36,7 @@ class SoalController extends Controller
         );
 
         // Ambil semua pertanyaan dari mapel tersebut
-        $bankPertanyaan = Bank_pertanyaan::where('mapel_id', $mapelId)->get();
+        $bankPertanyaan = BankPertanyaan::where('mapel_id', $mapelId)->get();
 
         // Ambil id pertanyaan yang sudah terpilih pada Soal ini
         $selectedPertanyaan = $soal->bankPertanyaan->pluck('id')->toArray();
