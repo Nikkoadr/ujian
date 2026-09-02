@@ -17,8 +17,6 @@ class PeriodeUjian extends Model
         'deskripsi',
         'is_active',
     ];
-
-    // (Opsional) Casting agar is_active otomatis boolean
     protected $casts = [
         'is_active' => 'boolean',
     ];

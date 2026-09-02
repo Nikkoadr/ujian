@@ -84,25 +84,3 @@ Route::middleware(['auth'])->group(function () {
         ->name('ujian-handler.update-waktu');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    // Dashboard siswa
-    Route::get('/dashboard', [UjianController::class, 'dashboard'])->name('dashboard');
-
-    // Validasi token dan mulai ujian
-    Route::post('/ujian/validasi', [UjianController::class, 'validasi'])->name('ujian.validasi');
-
-    // Tampilan ujian (soal)
-    Route::get('/ujian/{jadwal}', [UjianController::class, 'showExam'])->name('ujian.show');
-
-    // Simpan jawaban (AJAX)
-    Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
-
-    // Catat pelanggaran (AJAX)
-    Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name('ujian.pelanggaran');
-
-    // Blokir user (AJAX)
-    Route::post('/ujian/blokir', [UjianController::class, 'blokir'])->name('ujian.blokir');
-
-    // Selesai ujian
-    Route::post('/ujian/selesai/{jadwal}', [UjianController::class, 'selesai'])->name('ujian.selesai');
-});

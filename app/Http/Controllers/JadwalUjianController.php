@@ -36,7 +36,6 @@ class JadwalUjianController extends Controller
     {
         $periodeAktif = PeriodeUjian::where('is_active', true)->first();
 
-        // Ambil mapel yang memiliki jadwal pada periode aktif
         $mapels = Mapel::with(['jadwal', 'tingkat', 'kompetensiKeahlian'])
             ->join('jadwal', 'mapel.id', '=', 'jadwal.mapel_id')
             ->when($periodeAktif, function ($query) use ($periodeAktif) {
@@ -44,8 +43,7 @@ class JadwalUjianController extends Controller
             })
             ->orderBy('jadwal.tanggal_ujian', 'asc')
             ->orderBy('jadwal.jam_mulai', 'asc')
-            ->select('mapel.*')
-            // Tambahkan subquery untuk menghitung jumlah pertanyaan terpilih
+            ->select('mapel.*', 'jadwal.tanggal_ujian', 'jadwal.jam_mulai', 'jadwal.id as jadwal_id') // tambahkan kolom jadwal
             ->addSelect([
                 'jumlah_soal_terpilih' => \App\Models\Soal::selectRaw('count(*)')
                     ->join('soal_bank_pertanyaan', 'soal.id', '=', 'soal_bank_pertanyaan.soal_id')

@@ -16,9 +16,5 @@ class Kompetensi_keahlian extends Model
     {
         return $this->hasMany(Kelas::class, 'kompetensi_keahlian_id');
     }
-    public function peserta()
-    {
-        // langsung ambil peserta lewat kelas
-        return $this->hasManyThrough(Peserta::class, Kelas::class, 'kompetensi_keahlian_id', 'kelas_id');
-    }
+
 }

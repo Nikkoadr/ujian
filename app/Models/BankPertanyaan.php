@@ -8,24 +8,19 @@ class BankPertanyaan extends Model
 {
     protected $table = 'bank_pertanyaan';
     protected $guarded = [];
-
-    public function mapel()
+    public function bankJawaban()
     {
-        return $this->belongsTo(Mapel::class);
-    }
-
-    public function jawaban()
-    {
-        return $this->hasMany(BankJawaban::class, 'bank_pertanyaan_id');
-    }
-
-    public function kunciJawaban()
-    {
-        return $this->belongsTo(BankJawaban::class, 'kunci_jawaban_id');
+        return $this->hasMany(BankJawaban::class);
     }
 
     public function soal()
     {
-        return $this->belongsToMany(Soal::class, 'soal_bank_pertanyaan');
+        return $this->belongsToMany(Soal::class, 'soal_bank_pertanyaan')
+            ->withTimestamps();
+    }
+
+    public function jawaban()
+    {
+        return $this->hasMany(BankJawaban::class);
     }
 }

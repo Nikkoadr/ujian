@@ -47,73 +47,84 @@
                     </thead>
                     <tbody>
                         @forelse($mapels as $mapel)
+                        @php
+                            $jadwal = $mapel->jadwal->first(); // ambil satu jadwal (asumsi satu mapel satu jadwal di periode aktif)
+                        @endphp
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td>
                                 <div class="font-weight-bold text-primary">{{ $mapel->kode_mapel }}</div>
                                 <div class="text-dark font-weight-bold">{{ $mapel->nama_mapel }}</div>
                                 <small class="text-muted">
-                                    Periode: {{ $mapel->jadwal->periodeUjian->nama_periode ?? '-' }}
+                                    Periode: {{ $periodeAktif->nama_periode ?? '-' }}
                                 </small>
                             </td>
                             <td>
                                 <div class="small">
                                     <i class="fas fa-calendar-day fa-xs mr-1 text-muted"></i> 
-                                    {{ \Carbon\Carbon::parse($mapel->jadwal->tanggal_ujian)->translatedFormat('d F Y') }}<br>
+                                    {{ $jadwal ? \Carbon\Carbon::parse($jadwal->tanggal_ujian)->translatedFormat('d F Y') : '-' }}<br>
                                     <i class="fas fa-clock fa-xs mr-1 text-muted"></i> 
-                                    {{ \Carbon\Carbon::parse($mapel->jadwal->jam_mulai)->format('H:i') }} - 
-                                    {{ \Carbon\Carbon::parse($mapel->jadwal->jam_selesai)->format('H:i') }}
+                                    {{ $jadwal ? \Carbon\Carbon::parse($jadwal->jam_mulai)->format('H:i') : '-' }} - 
+                                    {{ $jadwal ? \Carbon\Carbon::parse($jadwal->jam_selesai)->format('H:i') : '-' }}
                                 </div>
                             </td>
                             <td>
                                 <span class="badge badge-light p-2 border">
                                     <i class="far fa-hourglass mr-1"></i> 
-                                    {{ $mapel->jadwal->durasi ?? \Carbon\Carbon::parse($mapel->jadwal->jam_mulai)->diff(\Carbon\Carbon::parse($mapel->jadwal->jam_selesai))->format('%H:%I') }}
+                                    {{ $jadwal ? ($jadwal->durasi ?? \Carbon\Carbon::parse($jadwal->jam_mulai)->diff(\Carbon\Carbon::parse($jadwal->jam_selesai))->format('%H:%I')) : '-' }}
                                 </span>
                             </td>
                             <td class="text-center">
-                                <div class="h5 mb-0 font-weight-bold {{ $mapel->jumlah_soal_terpilih > 0 ? 'text-success' : 'text-danger' }}">
+                                <div class="h5 mb-0 font-weight-bold {{ ($mapel->jumlah_soal_terpilih ?? 0) > 0 ? 'text-success' : 'text-danger' }}">
                                     {{ $mapel->jumlah_soal_terpilih ?? 0 }}
                                 </div>
                                 <div class="small text-uppercase font-weight-bold opacity-50" style="font-size: 10px;">Butir Soal</div>
                             </td>
                             <td>
-                                @if($mapel->jadwal->status == 'aktif')
-                                    <span class="badge badge-success px-3 py-2">Aktif</span>
+                                @if($jadwal)
+                                    @if($jadwal->status == 'aktif')
+                                        <span class="badge badge-success px-3 py-2">Aktif</span>
+                                    @else
+                                        <span class="badge badge-danger px-3 py-2">Nonaktif</span>
+                                    @endif
                                 @else
-                                    <span class="badge badge-danger px-3 py-2">Nonaktif</span>
+                                    <span class="badge badge-secondary px-3 py-2">-</span>
                                 @endif
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm" style="border-radius: 10px; overflow: hidden; border: 1px solid #eaecf4;">
                                     {{-- Kelola Soal (arah ke create soal dengan bawa jadwal_id & mapel_id) --}}
-                                <a href="{{ route('soal.manage', ['jadwalId' => $mapel->jadwal->id, 'mapelId' => $mapel->id]) }}" 
-                                class="btn btn-sm btn-white text-success border-right px-3" 
-                                title="Kelola Soal Ujian">
-                                    <i class="fas fa-file-signature"></i>
-                                </a>
+                                    @if($jadwal)
+                                    <a href="{{ route('soal.manage', ['jadwalId' => $jadwal->id, 'mapelId' => $mapel->id]) }}" 
+                                        class="btn btn-sm btn-white text-success border-right px-3" 
+                                        title="Kelola Soal Ujian">
+                                        <i class="fas fa-file-signature"></i>
+                                    </a>
 
-                                    @if(Gate::allows('admin'))
-                                        {{-- Edit Jadwal --}}
-                                        <a href="{{ route('jadwal-ujian.edit', $mapel->jadwal->id) }}" 
-                                           class="btn btn-sm btn-white text-primary border-right px-3" 
-                                           title="Edit Jadwal">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
+                                        @if(Gate::allows('admin'))
+                                            {{-- Edit Jadwal --}}
+                                            <a href="{{ route('jadwal-ujian.edit', $jadwal->id) }}" 
+                                            class="btn btn-sm btn-white text-primary border-right px-3" 
+                                            title="Edit Jadwal">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
 
-                                        {{-- Hapus Jadwal --}}
-                                        <button type="button" 
-                                                class="btn btn-sm btn-white text-danger px-3" 
-                                                onclick="confirmDelete({{ $mapel->jadwal->id }}, '{{ $mapel->nama_mapel }}')"
-                                                title="Hapus Jadwal">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        <form id="delete-form-{{ $mapel->jadwal->id }}" 
-                                              action="{{ route('jadwal-ujian.destroy', $mapel->jadwal->id) }}" 
-                                              method="POST" style="display: none;">
-                                            @csrf
-                                            @method('DELETE')
-                                        </form>
+                                            {{-- Hapus Jadwal --}}
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-white text-danger px-3" 
+                                                    onclick="confirmDelete({{ $jadwal->id }}, '{{ $mapel->nama_mapel }}')"
+                                                    title="Hapus Jadwal">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            <form id="delete-form-{{ $jadwal->id }}" 
+                                                action="{{ route('jadwal-ujian.destroy', $jadwal->id) }}" 
+                                                method="POST" style="display: none;">
+                                                @csrf
+                                                @method('DELETE')
+                                            </form>
+                                        @endif
+                                    @else
+                                        <span class="btn btn-sm btn-light text-muted px-3">Tidak ada jadwal</span>
                                     @endif
                                 </div>
                             </td>

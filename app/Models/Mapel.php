@@ -24,13 +24,8 @@ class Mapel extends Model
         return $this->hasMany(BankPertanyaan::class, 'mapel_id');
     }
 
-    public function soal()
-    {
-        return $this->hasMany(Soal::class);
-    }
-
     public function jadwal()
     {
-        return $this->hasOne(Jadwal::class);
+        return $this->hasMany(Jadwal::class, 'mapel_id');
     }
 }
