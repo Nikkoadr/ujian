@@ -7,23 +7,29 @@ use Illuminate\Database\Eloquent\Model;
 class Soal extends Model
 {
     protected $table = 'soal';
+    protected $guarded = [];
 
-    protected $fillable = [
-        'mapel_id',
-        'pertanyaan',
-        'gambar_soal',
-        'jenis_soal',
-        'bobot_nilai',
-    ];
-
-    // Relasi ke Mapel
-    public function mapel()
+    // Relasi ke periode ujian
+    public function periodeUjian()
     {
-        return $this->belongsTo(Mapel::class, 'mapel_id');
+        return $this->belongsTo(PeriodeUjian::class);
     }
 
-    public function jawaban()
+    // Relasi ke jadwal
+    public function jadwal()
     {
-        return $this->hasMany(Jawaban::class, 'soal_id');
+        return $this->belongsTo(Jadwal::class);
+    }
+
+    // Relasi ke mapel
+    public function mapel()
+    {
+        return $this->belongsTo(Mapel::class);
+    }
+
+    // Relasi many-to-many dengan bank_pertanyaan
+    public function bankPertanyaan()
+    {
+        return $this->belongsToMany(Bank_pertanyaan::class, 'soal_bank_pertanyaan');
     }
 }

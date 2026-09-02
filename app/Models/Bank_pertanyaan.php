@@ -9,9 +9,9 @@ class Bank_pertanyaan extends Model
     protected $table = 'bank_pertanyaan';
     protected $guarded = [];
 
-    public function bankSoal()
+    public function mapel()
     {
-        return $this->belongsTo(Bank_soal::class);
+        return $this->belongsTo(Mapel::class);
     }
 
     public function jawaban()
@@ -22,5 +22,10 @@ class Bank_pertanyaan extends Model
     public function kunciJawaban()
     {
         return $this->belongsTo(Bank_jawaban::class, 'kunci_jawaban_id');
+    }
+
+    public function soal()
+    {
+        return $this->belongsToMany(Soal::class, 'soal_bank_pertanyaan');
     }
 }

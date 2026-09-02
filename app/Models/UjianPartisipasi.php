@@ -14,4 +14,18 @@ class UjianPartisipasi extends Model
         'status',
         'mulai_ujian',
     ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function mapel()
+    {
+        return $this->belongsTo(Mapel::class);
+    }
+
+    public function jadwal()
+    {
+        return $this->belongsTo(Jadwal::class);
+    }
 }

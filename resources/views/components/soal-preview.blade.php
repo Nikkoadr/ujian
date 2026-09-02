@@ -22,7 +22,7 @@
         <div class="card-body bg-light border-top">
             <!-- ACTION -->
             <div class="d-flex justify-content-end mb-3">
-                <a href="{{ route('soal.edit', $item->id) }}"
+                <a href="{{ route('bank-pertanyaan.edit', $item->id) }}"
                 class="btn btn-sm btn-white shadow-sm text-primary mr-2">
                     <i class="fas fa-pen mr-1"></i>
                     Edit
@@ -30,7 +30,7 @@
 
                 <!-- Form Destroy dengan ID Unik -->
                 <form id="delete-form-{{ $item->id }}" 
-                    action="{{ route('soal.destroy', $item->id) }}"
+                    action="{{ route('bank-pertanyaan.destroy', $item->id) }}"
                     method="POST" 
                     style="display: inline;">
                     @csrf

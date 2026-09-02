@@ -60,10 +60,13 @@
             <h1 class="h3 mb-4 text-gray-800 font-weight-bold">Dashboard Token Admin</h1>
 
             <div class="card shadow border-0 mx-auto" style="border-radius: 20px; max-width: 100%;">
-                <div class="card-header bg-dark py-3" style="border-radius: 20px 20px 0 0;">
+                <div class="card-header bg-dark py-3 d-flex justify-content-between align-items-center" style="border-radius: 20px 20px 0 0;">
                     <h6 class="m-0 font-weight-bold text-white text-uppercase small" style="letter-spacing: 1px;">
                         Token Akses Saat Ini
                     </h6>
+                    <span class="badge badge-light text-dark">
+                        {{ isset($jadwal) && $jadwal->mapel ? $jadwal->mapel->nama_mapel : 'Tidak Ada Jadwal Aktif' }}
+                    </span>
                 </div>
                 
                 <div class="card-body bg-white py-5">

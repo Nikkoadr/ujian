@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('bank_pertanyaan', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('bank_soal_id')->constrained('bank_soal')->onDelete('cascade');
+            $table->foreignId('mapel_id')->constrained('mapel')->onDelete('cascade');
             $table->text('pertanyaan');
             $table->string('gambar_soal')->nullable();
             $table->enum('jenis_soal', ['pg', 'essay'])->default('pg');
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->unsignedBigInteger('kunci_jawaban_id')->nullable();
             $table->timestamps();
 
-            $table->index('bank_soal_id');
+            $table->index('mapel_id');
             $table->index('jenis_soal');
         });
     }

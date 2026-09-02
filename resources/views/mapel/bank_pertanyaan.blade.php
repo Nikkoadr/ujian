@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title')
-    Manajemen Bank Soal - {{ $bank_soal->nama_mapel ?? $bank_soal->nama }}
+    Manajemen Bank Soal - {{ $mapel->nama_mapel ?? $mapel->nama }}
 @endsection
 
 @section('styles')
@@ -22,7 +22,7 @@
                         </div>
                         <div>
                             <h5 class="font-weight-bold text-dark mb-1">
-                                Tambah Butir Soal {{ $bank_soal->nama_mapel ?? $bank_soal->nama }}
+                                Tambah Butir Soal {{ $mapel->nama_mapel ?? $mapel->nama }}
                             </h5>
                             <small class="text-muted">
                                 Tambahkan pertanyaan beserta jawaban pilihan ganda
@@ -32,7 +32,7 @@
                 </div>
 
                 <div class="card-body p-4">
-                    <form action="{{ route('bank-pertanyaan.store', $bank_soal->id) }}" method="POST">
+                    <form action="{{ route('bank-pertanyaan.store', $mapel->id) }}" method="POST">
                         
                         @csrf
                         <div class="form-group mb-4">
@@ -247,7 +247,7 @@
         automatic_uploads: true,
         smart_paste: false,
 
-        images_upload_url: "{{ route('soal.tinymce.upload') }}",
+        images_upload_url: "{{ route('bank-pertanyaan.tinymce.upload') }}",
         images_upload_credentials: true,
 
 images_upload_handler: function (blobInfo, progress) {
@@ -260,7 +260,7 @@ images_upload_handler: function (blobInfo, progress) {
         formData.append('file', blobInfo.blob(), blobInfo.filename());
         formData.append('type', isJawaban ? 'jawaban' : 'soal');
 
-        fetch("{{ route('soal.tinymce.upload') }}", {
+        fetch("{{ route('bank-pertanyaan.tinymce.upload') }}", {
             method: 'POST',
             body: formData,
             headers: {

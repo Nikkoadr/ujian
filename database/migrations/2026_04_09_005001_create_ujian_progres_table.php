@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained();
             $table->foreignId('mapel_id')->constrained('mapel');
-            $table->foreignId('soal_id')->constrained('soal');
-            $table->foreignId('jawaban_id')->nullable()->constrained('jawaban'); // null jika ragu/belum isi
+            $table->foreignId('jadwal_id')->constrained('jadwal')->onDelete('cascade');
+            $table->foreignId('bank_pertanyaan_id')->constrained('bank_pertanyaan');
+            $table->foreignId('bank_jawaban_id')->nullable()->constrained('bank_jawaban');
             $table->boolean('is_ragu')->default(false);
             $table->timestamps();
         });

@@ -14,7 +14,6 @@ use App\Http\Controllers\KelasController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UjianHandlerController;
-use App\Http\Controllers\BankSoalController;
 use App\Http\Controllers\BankPertanyaanController;
 use App\Http\Controllers\PeriodeUjianController;
 use App\Http\Controllers\JadwalUjianController;
@@ -36,17 +35,6 @@ Auth::routes(['register' => false, 'reset' => false]);
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-Route::post('/ujian/validasi', [MapelController::class, 'validasiToken'])->name('ujian.validasi');
-Route::post('/mapel/import', [MapelController::class, 'import'])->name('mapel.import');
-
-Route::get('/ujian/{id}/mulai', [UjianController::class, 'index'])->name('ujian.mulai');
-Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
-Route::post('/ujian/blokir', [UjianController::class, 'blokirSiswa'])->name('ujian.blokir');
-Route::post('/ujian/{id}/selesai', [UjianController::class, 'selesai'])->name('ujian.selesai');
-Route::get('/ujian/{id}/selesai', function () {
-    return redirect()->route('home')
-        ->with('success', 'Ujian sudah selesai.');
-});
 Route::resource('jadwal-ujian', JadwalUjianController::class);
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
@@ -57,44 +45,29 @@ Route::patch('siswa/{id}/toggle-status', [SiswaController::class, 'toggleStatus'
 Route::post('siswa/{id}/block', [SiswaController::class, 'toggleStatus'])->name('siswa.block');
 
 Route::resource('pengawas', PengawasController::class);
-Route::resource('mapel', MapelController::class);
 Route::resource('periode_ujian', PeriodeUjianController::class);
 
-// Bank Soal resource sudah ada
-Route::resource('bank-soal', BankSoalController::class);
+Route::resource('mapel', MapelController::class);
+Route::post('/mapel/import', [MapelController::class, 'import'])->name('mapel.import');
+Route::get('soal/manage/{jadwalId}/{mapelId}', [SoalController::class, 'manage'])->name('soal.manage');
+Route::put('soal/sync/{soal}', [SoalController::class, 'sync'])->name('soal.sync');
 
-// Nested routes untuk pertanyaan dan jawaban di dalam bank soal
-Route::get('bank-soal/{bank_soal}/pertanyaan', [BankPertanyaanController::class, 'index'])->name('bank-pertanyaan.index');
-Route::post('bank-pertanyaan/{bank_soal_id}', [BankPertanyaanController::class, 'store'])->name('bank-pertanyaan.store');
+Route::get('bank-soal/{mapel}', [BankPertanyaanController::class, 'index'])->name('bank-pertanyaan.index');
+Route::post('bank-pertanyaan/{mapel}', [BankPertanyaanController::class, 'store'])->name('bank-pertanyaan.store');
 Route::get('bank-pertanyaan/{bank_pertanyaan}/edit', [BankPertanyaanController::class, 'edit'])->name('bank-pertanyaan.edit');
 Route::put('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::class, 'update'])->name('bank-pertanyaan.update');
 Route::delete('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::class, 'destroy'])->name('bank-pertanyaan.destroy');
-
-// Upload gambar TinyMCE
 Route::post('bank-pertanyaan/upload-tinymce', [BankPertanyaanController::class, 'uploadTinyMceImage'])->name('bank-pertanyaan.tinymce.upload');
 
-Route::prefix('soal')->name('soal.')->group(function () {
-    Route::get('/mapel/{mapel_id}', [SoalController::class, 'index'])->name('index');
-    Route::get('/{id}/edit', [SoalController::class, 'edit'])->name('soal.edit');
-    Route::post('/mapel/{mapel_id}/store', [SoalController::class, 'store'])->name('store');
-
-    Route::get('/{id}/edit', [SoalController::class, 'edit'])->name('edit');
-    Route::put('/{id}', [SoalController::class, 'update'])->name('update');
-
-    Route::delete('/{id}', [SoalController::class, 'destroy'])->name('destroy');
-});
-
-Route::post('/soal/tinymce-upload', [SoalController::class, 'uploadTinyMceImage'])
-    ->name('soal.tinymce.upload');
-
 Route::get('/token', [TokenController::class, 'index'])->name('token.index');
+Route::post('/token/refresh', [TokenController::class, 'refreshToken'])->name('token.refresh');
+
+Route::post('/ujian/validasi', [TokenController::class, 'validasiToken'])->name('ujian.validasi');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
+
 Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
-
-
-Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name('ujian.pelanggaran');
 
 Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
 Route::post('/setting/update', [SettingController::class, 'update'])->name('setting.update');

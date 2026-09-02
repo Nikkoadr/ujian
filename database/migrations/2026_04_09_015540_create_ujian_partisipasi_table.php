@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('mapel_id')->constrained('mapel')->onDelete('cascade');
+            $table->foreignId('jadwal_id')->nullable()->constrained('jadwal')->onDelete('cascade');
             $table->enum('status', ['sedang mengerjakan', 'selesai'])->default('sedang mengerjakan');
             $table->integer('pelanggaran')->default(0);
             $table->timestamp('mulai_ujian');

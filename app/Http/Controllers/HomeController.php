@@ -9,36 +9,26 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Kelas;
 use App\Models\Pengawas;
+use App\Models\Jadwal;           // <-- tambahkan model Jadwal
+use App\Models\UjianPartisipasi; // <-- tambahkan model Partisipasi jika ada
 use Illuminate\Support\Facades\DB;
-use Termwind\Components\Raw;
 
 class HomeController extends Controller
 {
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
     public function __construct()
     {
         $this->middleware('auth');
     }
 
-    /**
-     * Show the application dashboard.
-     *
-     * @return \Illuminate\Contracts\Support\Renderable
-     */
     public function index()
     {
         if (Gate::allows('admin')) {
-            // Mengambil total utama
+            // Bagian admin (tidak berubah)
             $totalSiswa = Siswa::count();
-            $totalGuru = User::where('role_id', 2)->count(); // Asumsi role_id 2 adalah Guru
-            $totalPengawas = Pengawas::count(); // Asumsi role_id 4 adalah Pengawas
+            $totalGuru = User::where('role_id', 2)->count();
+            $totalPengawas = Pengawas::count();
             $totalUser = User::count();
 
-            // Mengambil status user dalam satu kali query untuk efisiensi (opsional, tapi bagus untuk skala besar)
             $statusCounts = User::select('status', DB::raw('count(*) as total'))
                 ->groupBy('status')
                 ->pluck('total', 'status');
@@ -65,6 +55,7 @@ class HomeController extends Controller
 
             return view('home', $data);
         }
+
         if (Gate::any(['pengawas', 'guru'])) {
             return redirect()->route('token.index');
         }
@@ -88,18 +79,25 @@ class HomeController extends Controller
 
             $kelas = $siswa->kelas;
 
-            $daftarUjian = Mapel::where('status', 'aktif')
+            // Ambil jadwal ujian yang aktif hari ini dan sesuai dengan kelas siswa
+            $daftarUjian = Jadwal::with('mapel') // pastikan relasi mapel() ada di model Jadwal
+                ->where('status', 'aktif')
                 ->whereDate('tanggal_ujian', $today)
-                ->where('tingkat_id', $kelas->tingkat_id)
-                ->where(function ($query) use ($kelas) {
-                    $query->where('kompetensi_keahlian_id', $kelas->kompetensi_keahlian_id)
-                        ->orWhereNull('kompetensi_keahlian_id');
+                ->whereHas('mapel', function ($query) use ($kelas) {
+                    $query->where('tingkat_id', $kelas->tingkat_id)
+                        ->where(function ($q) use ($kelas) {
+                            $q->where('kompetensi_keahlian_id', $kelas->kompetensi_keahlian_id)
+                                ->orWhereNull('kompetensi_keahlian_id');
+                        });
                 })
-                // Menarik data partisipasi untuk user yang sedang login
-                ->with(['partisipasi' => function ($query) {
-                    $query->where('user_id', Auth::id());
-                }])
                 ->get();
+
+            // Tambahkan status partisipasi siswa untuk setiap jadwal
+            foreach ($daftarUjian as $ujian) {
+                $ujian->partisipasi = UjianPartisipasi::where('user_id', Auth::id())
+                    ->where('jadwal_id', $ujian->id)
+                    ->first();
+            }
 
             return view('daftar_mapel', compact('daftarUjian', 'siswa', 'kelas', 'user'));
         }

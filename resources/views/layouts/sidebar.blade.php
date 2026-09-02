@@ -56,12 +56,13 @@
         </a>
     </li>
 
-    <li class="nav-item {{ request()->routeIs('bank-soal.*') || request()->is('bank-soal/*') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ route('bank-soal.index') }}">
-            <i class="fas fa-fw fa-database"></i>
-            <span>Bank Soal</span>
+    <li class="nav-item {{ request()->routeIs('mapel.*') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('mapel.index') }}">
+            <i class="fas fa-fw fa-book"></i>
+            <span>Mata Pelajaran</span>
         </a>
     </li>
+
     <li class="nav-item {{ request()->routeIs('periode_ujian.*') || request()->is('periode_ujian/*') ? 'active' : '' }}">
         <a class="nav-link" href="{{ route('periode_ujian.index') }}">
             <i class="fas fa-fw fa-calendar-alt"></i>

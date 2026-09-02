@@ -7,27 +7,30 @@ use Illuminate\Database\Eloquent\Model;
 class Mapel extends Model
 {
     protected $table = 'mapel';
+    protected $guarded = [];
 
-    protected $fillable = [
-        'tanggal_ujian',
-        'jam_mulai',
-        'jam_selesai',
-        'kode_mapel',
-        'nama_mapel',
-        'durasi',
-        'token',
-        'status',
-        'tingkat_id',
-        'kompetensi_keahlian_id',
-    ];
-
-    public function partisipasi()
+    public function tingkat()
     {
-        return $this->hasOne(UjianPartisipasi::class, 'mapel_id', 'id');
+        return $this->belongsTo(Tingkat::class, 'tingkat_id');
     }
 
-    public function soals()
+    public function kompetensiKeahlian()
     {
-        return $this->hasMany(Soal::class, 'mapel_id');
+        return $this->belongsTo(Kompetensi_keahlian::class, 'kompetensi_keahlian_id');
+    }
+
+    public function bankPertanyaan()
+    {
+        return $this->hasMany(Bank_pertanyaan::class, 'mapel_id');
+    }
+
+    public function soal()
+    {
+        return $this->hasMany(Soal::class);
+    }
+
+    public function jadwal()
+    {
+        return $this->hasOne(Jadwal::class);
     }
 }

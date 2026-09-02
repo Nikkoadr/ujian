@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Bank_soal;
+use App\Models\Mapel;
 use App\Models\Bank_pertanyaan;
 use App\Models\Bank_jawaban;
 use Illuminate\Http\Request;
@@ -20,17 +20,19 @@ class BankPertanyaanController extends Controller
     /**
      * Tampilkan halaman manajemen soal untuk bank soal tertentu
      */
-    public function index(Bank_soal $bank_soal)
+    public function index(Mapel $mapel)
     {
-        $bank_soal = Bank_soal::findOrFail($bank_soal->id);
+        // Filter menggunakan kolom 'mapel_id' sesuai isi migrasi
         $bank_pertanyaan = Bank_pertanyaan::with('jawaban')
-            ->where('bank_soal_id', $bank_soal->id)
+            ->where('mapel_id', $mapel->id)
             ->orderBy('created_at', 'asc')
-            ->paginate(60);
-        return view('bank_soal.bank_pertanyaan', compact('bank_soal', 'bank_pertanyaan'));
+            ->get();
+
+        // Kirim $mapel dan $bank_pertanyaan ke view
+        return view('mapel.bank_pertanyaan', compact('mapel', 'bank_pertanyaan'));
     }
 
-    public function store(Request $request, $bank_soal_id)
+    public function store(Request $request, $mapel_id)
     {
         $request->validate([
             'pertanyaan'    => 'required',
@@ -39,7 +41,7 @@ class BankPertanyaanController extends Controller
             'kunci_jawaban' => 'nullable',
         ]);
         $soal = new Bank_pertanyaan();
-        $soal->bank_soal_id = $bank_soal_id;
+        $soal->mapel_id = $mapel_id;
         $soal->pertanyaan = $request->pertanyaan;
         $soal->jenis_soal = $request->jenis_soal;
         $soal->bobot_nilai = $request->bobot_nilai ?? 1;
@@ -61,8 +63,8 @@ class BankPertanyaanController extends Controller
 
     public function edit($id)
     {
-        $soal = Bank_pertanyaan::with('bank_jawaban')->findOrFail($id);
-        return view('bank_soal.edit_pertanyaan', compact('soal'));
+        $soal = Bank_pertanyaan::with('jawaban')->findOrFail($id);
+        return view('mapel.edit_pertanyaan', compact('soal'));
     }
 
     public function update(Request $request, $id)
@@ -107,7 +109,7 @@ class BankPertanyaanController extends Controller
         $this->cleanOrphanEditorImages();
 
         return redirect()
-            ->route('soal.index', $soal->mapel_id)
+            ->route('bank-pertanyaan.index', $soal->mapel_id)
             ->with([
                 'success' => 'Soal dan Jawaban berhasil diperbarui!',
                 'highlight' => $soal->id

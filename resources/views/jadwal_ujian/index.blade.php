@@ -8,7 +8,7 @@
         <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Jadwal Ujian</h1>
         @if(Gate::allows('admin'))
         <div class="d-flex align-items-center">
-            <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahUjian" style="border-radius: 10px; padding: 0.4rem 1rem;">
+            <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahJadwal" style="border-radius: 10px; padding: 0.4rem 1rem;">
                 <i class="fas fa-calendar-plus fa-sm mr-2"></i> Buat Jadwal Ujian
             </button>
         </div>
@@ -46,37 +46,39 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($ujians as $ujian)
+                        @forelse($mapels as $mapel)
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td>
-                                <div class="font-weight-bold text-primary">{{ $ujian->kode_ujian }}</div>
-                                <div class="text-dark font-weight-bold">{{ $ujian->nama_ujian }}</div>
-                                <small class="text-muted">Periode: {{ $ujian->periodeUjian->nama_periode ?? '-' }}</small>
+                                <div class="font-weight-bold text-primary">{{ $mapel->kode_mapel }}</div>
+                                <div class="text-dark font-weight-bold">{{ $mapel->nama_mapel }}</div>
+                                <small class="text-muted">
+                                    Periode: {{ $mapel->jadwal->periodeUjian->nama_periode ?? '-' }}
+                                </small>
                             </td>
                             <td>
                                 <div class="small">
                                     <i class="fas fa-calendar-day fa-xs mr-1 text-muted"></i> 
-                                    {{ \Carbon\Carbon::parse($ujian->tanggal_ujian)->translatedFormat('d F Y') }}<br>
+                                    {{ \Carbon\Carbon::parse($mapel->jadwal->tanggal_ujian)->translatedFormat('d F Y') }}<br>
                                     <i class="fas fa-clock fa-xs mr-1 text-muted"></i> 
-                                    {{ \Carbon\Carbon::parse($ujian->jam_mulai)->format('H:i') }} - {{ \Carbon\Carbon::parse($ujian->jam_selesai)->format('H:i') }}
+                                    {{ \Carbon\Carbon::parse($mapel->jadwal->jam_mulai)->format('H:i') }} - 
+                                    {{ \Carbon\Carbon::parse($mapel->jadwal->jam_selesai)->format('H:i') }}
                                 </div>
                             </td>
                             <td>
                                 <span class="badge badge-light p-2 border">
                                     <i class="far fa-hourglass mr-1"></i> 
-                                    {{-- Jika durasi berupa selisih jam_mulai dan jam_selesai --}}
-                                    {{ \Carbon\Carbon::parse($ujian->jam_mulai)->diff(\Carbon\Carbon::parse($ujian->jam_selesai))->format('%H:%I') }}
+                                    {{ $mapel->jadwal->durasi ?? \Carbon\Carbon::parse($mapel->jadwal->jam_mulai)->diff(\Carbon\Carbon::parse($mapel->jadwal->jam_selesai))->format('%H:%I') }}
                                 </span>
                             </td>
                             <td class="text-center">
-                                <div class="h5 mb-0 font-weight-bold {{ $ujian->soals_count > 0 ? 'text-success' : 'text-danger' }}">
-                                    {{ $ujian->soals_count ?? 0 }}
+                                <div class="h5 mb-0 font-weight-bold {{ $mapel->jumlah_soal_terpilih > 0 ? 'text-success' : 'text-danger' }}">
+                                    {{ $mapel->jumlah_soal_terpilih ?? 0 }}
                                 </div>
                                 <div class="small text-uppercase font-weight-bold opacity-50" style="font-size: 10px;">Butir Soal</div>
                             </td>
                             <td>
-                                @if($ujian->status == 'aktif')
+                                @if($mapel->jadwal->status == 'aktif')
                                     <span class="badge badge-success px-3 py-2">Aktif</span>
                                 @else
                                     <span class="badge badge-danger px-3 py-2">Nonaktif</span>
@@ -84,34 +86,41 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm" style="border-radius: 10px; overflow: hidden; border: 1px solid #eaecf4;">
-                                    <a href="{{ route('soal.index', $ujian->id) }}" 
-                                       class="btn btn-sm btn-white text-success border-right px-3" 
-                                       title="Kelola Soal Ujian">
-                                        <i class="fas fa-file-signature"></i>
-                                    </a>
+                                    {{-- Kelola Soal (arah ke create soal dengan bawa jadwal_id & mapel_id) --}}
+                                <a href="{{ route('soal.manage', ['jadwalId' => $mapel->jadwal->id, 'mapelId' => $mapel->id]) }}" 
+                                class="btn btn-sm btn-white text-success border-right px-3" 
+                                title="Kelola Soal Ujian">
+                                    <i class="fas fa-file-signature"></i>
+                                </a>
+
                                     @if(Gate::allows('admin'))
-                                    <a href="{{ route('ujian.edit', $ujian->id) }}" 
-                                       class="btn btn-sm btn-white text-primary border-right px-3" 
-                                       title="Edit Jadwal">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" 
-                                            class="btn btn-sm btn-white text-danger px-3" 
-                                            onclick="confirmDelete({{ $ujian->id }}, '{{ $ujian->nama_ujian }}')"
-                                            title="Hapus Ujian">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <form id="delete-form-{{ $ujian->id }}" action="{{ route('ujian.destroy', $ujian->id) }}" method="POST" style="display: none;">
-                                        @csrf
-                                        @method('DELETE')
-                                    </form>
+                                        {{-- Edit Jadwal --}}
+                                        <a href="{{ route('jadwal-ujian.edit', $mapel->jadwal->id) }}" 
+                                           class="btn btn-sm btn-white text-primary border-right px-3" 
+                                           title="Edit Jadwal">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+
+                                        {{-- Hapus Jadwal --}}
+                                        <button type="button" 
+                                                class="btn btn-sm btn-white text-danger px-3" 
+                                                onclick="confirmDelete({{ $mapel->jadwal->id }}, '{{ $mapel->nama_mapel }}')"
+                                                title="Hapus Jadwal">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <form id="delete-form-{{ $mapel->jadwal->id }}" 
+                                              action="{{ route('jadwal-ujian.destroy', $mapel->jadwal->id) }}" 
+                                              method="POST" style="display: none;">
+                                            @csrf
+                                            @method('DELETE')
+                                        </form>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center">Belum ada jadwal ujian.</td>
+                            <td colspan="7" class="text-center">Belum ada jadwal ujian untuk periode ini.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -121,9 +130,9 @@
     </div>
 </div>
 
-{{-- MODAL TAMBAH UJIAN --}}
+{{-- MODAL TAMBAH JADWAL UJIAN --}}
 @if(Gate::allows('admin'))
-<div class="modal fade" id="modalTambahUjian" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="modalTambahJadwal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content border-0 shadow" style="border-radius: 20px;">
             <div class="modal-header border-0">
@@ -142,22 +151,24 @@
                                 <option value="">Pilih Periode</option>
                                 @foreach($periodeUjian as $periode)
                                     <option value="{{ $periode->id }}" {{ old('periode_ujian_id') == $periode->id ? 'selected' : '' }}>
-                                        {{ $periode->nama_periode }} ({{ \Carbon\Carbon::parse($periode->tanggal_mulai)->format('d-m-Y') }} - {{ \Carbon\Carbon::parse($periode->tanggal_selesai)->format('d-m-Y') }})
+                                        {{ $periode->nama_periode }}
                                     </option>
                                 @endforeach
                             </select>
                             @error('periode_ujian_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6 form-group">
-                            <label class="small font-weight-bold">Kode Ujian</label>
-                            <input type="text" name="kode_ujian" class="form-control @error('kode_ujian') is-invalid @enderror" value="{{ old('kode_ujian') }}" placeholder="E.g. BIN-X-1" required>
-                            @error('kode_ujian') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <label class="small font-weight-bold">Pilih Mata Pelajaran</label>
+                            <select name="mapel_id" class="form-control @error('mapel_id') is-invalid @enderror" required>
+                                <option value="">Pilih Mapel</option>
+                                @foreach($semuaMapel as $m)
+                                    <option value="{{ $m->id }}" {{ old('mapel_id') == $m->id ? 'selected' : '' }}>
+                                        {{ $m->kode_mapel }} - {{ $m->nama_mapel }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('mapel_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="small font-weight-bold">Nama Ujian</label>
-                        <input type="text" name="nama_ujian" class="form-control @error('nama_ujian') is-invalid @enderror" value="{{ old('nama_ujian') }}" placeholder="E.g. Bahasa Indonesia" required>
-                        @error('nama_ujian') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="row">
                         <div class="col-md-4 form-group">
@@ -180,28 +191,6 @@
                         <label class="small font-weight-bold">Durasi (HH:mm:ss)</label>
                         <input type="time" name="durasi" step="1" class="form-control @error('durasi') is-invalid @enderror" value="{{ old('durasi') }}" required>
                         @error('durasi') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label class="small font-weight-bold">Tingkat</label>
-                            <select name="tingkat_id" class="form-control @error('tingkat_id') is-invalid @enderror" required>
-                                <option value="">Pilih Tingkat</option>
-                                @foreach($tingkat as $level)
-                                    <option value="{{ $level->id }}" {{ old('tingkat_id') == $level->id ? 'selected' : '' }}>{{ $level->nama_tingkat }}</option>
-                                @endforeach
-                            </select>
-                            @error('tingkat_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label class="small font-weight-bold">Kompetensi Keahlian</label>
-                            <select name="kompetensi_keahlian_id" class="form-control @error('kompetensi_keahlian_id') is-invalid @enderror">
-                                <option value="">Pilih Kompetensi Keahlian</option>
-                                @foreach($kompetensiKeahlian as $keahlian)
-                                    <option value="{{ $keahlian->id }}" {{ old('kompetensi_keahlian_id') == $keahlian->id ? 'selected' : '' }}>{{ $keahlian->nama_kompetensi }}</option>
-                                @endforeach
-                            </select>
-                            @error('kompetensi_keahlian_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
                     </div>
                     <div class="form-group">
                         <label class="small font-weight-bold">Status</label>
@@ -252,7 +241,7 @@
         @if(session('error') || $errors->any())
             Toast.fire({ icon: 'error', title: "{{ session('error') ?? 'Periksa kembali inputan Anda.' }}" });
             @if($errors->any())
-                $('#modalTambahUjian').modal('show');
+                $('#modalTambahJadwal').modal('show');
             @endif
         @endif
     });
@@ -260,7 +249,7 @@
     function confirmDelete(id, name) {
         Swal.fire({
             title: 'Hapus Jadwal Ujian?',
-            text: "Jadwal " + name + " dan semua soal di dalamnya akan dihapus permanen!",
+            text: "Jadwal untuk " + name + " akan dihapus permanen!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#e74a3b',
