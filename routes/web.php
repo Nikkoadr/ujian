@@ -83,4 +83,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('ujian-handler.update-waktu');
 });
 
-Route::get('/ujian/{jadwal}/mulai', [UjianController::class, 'showExam'])->name('ujian.mulai');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/ujian/{jadwal}/mulai', [UjianController::class, 'showExam'])->name('ujian.mulai');
+    Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
+    Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name('ujian.pelanggaran');
+    Route::post('/ujian/blokir', [UjianController::class, 'blokir'])->name('ujian.blokir');
+    Route::post('/ujian/selesai/{mapel}', [UjianController::class, 'selesai'])->name('ujian.selesai');
+});

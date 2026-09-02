@@ -2,179 +2,290 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BankPertanyaan;
 use App\Models\Jadwal;
-use App\Models\Soal;
-use App\Models\SoalBankPertanyaan;
-use App\Models\UjianPelanggaran;
 use App\Models\UjianSiswa;
-use App\Models\UjianProgres;
-use Carbon\Carbon;
+use App\Models\ProgresSiswa;
+use App\Models\BankPertanyaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class UjianController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     /**
-     * Render lembar pengerjaan soal ujian
+     * Tampilkan halaman ujian.
      */
     public function showExam(Jadwal $jadwal)
     {
+        // Cek akses token
         if (session('akses_ujian_' . $jadwal->id) !== Auth::id()) {
             return redirect()->route('home')->with('error', 'Silakan masukkan token ujian terlebih dahulu.');
         }
 
-        return view('ujian.index', compact('jadwal'));
-    }
-
-    /**
-     * Simpan jawaban atau status ragu (AJAX).
-     */
-    public function simpan(Request $request)
-    {
-        $request->validate([
-            'mapel_id'      => 'required|exists:mapel,id',
-            'soal_id'       => 'required|exists:bank_pertanyaan,id',
-            'jawaban_id'    => 'nullable|exists:bank_jawaban,id',
-            'is_ragu'       => 'required|boolean',
-        ]);
-
         $user = Auth::user();
-        $jadwalId = Session::get('ujian_jadwal_id');
-        if (!$jadwalId) {
-            return response()->json(['success' => false, 'message' => 'Sesi ujian tidak ditemukan.'], 422);
+        $mapel = $jadwal->mapel;
+
+        // Ambil bank_pertanyaan yang terhubung dengan jadwal
+        $bankPertanyaanIds = DB::table('soal_bank_pertanyaan')
+            ->join('soal', 'soal.id', '=', 'soal_bank_pertanyaan.soal_id')
+            ->where('soal.jadwal_id', $jadwal->id)
+            ->pluck('soal_bank_pertanyaan.bank_pertanyaan_id');
+
+        if ($bankPertanyaanIds->isEmpty()) {
+            return redirect()->route('home')->with('error', 'Belum ada soal untuk ujian ini.');
         }
 
-        // Verifikasi bahwa soal ini milik jadwal yang sedang dikerjakan
-        $soal = Soal::where('jadwal_id', $jadwalId)->first();
-        if (!$soal) {
-            return response()->json(['success' => false, 'message' => 'Soal tidak valid.'], 422);
-        }
+        $bankPertanyaan = BankPertanyaan::with('jawaban')
+            ->whereIn('id', $bankPertanyaanIds)
+            ->orderBy('id')
+            ->get();
 
-        $isValid = SoalBankPertanyaan::where('soal_id', $soal->id)
-            ->where('bank_pertanyaan_id', $request->soal_id)
-            ->exists();
-        if (!$isValid) {
-            return response()->json(['success' => false, 'message' => 'Soal tidak terdaftar dalam ujian ini.'], 422);
-        }
+        // Progres siswa
+        $progresMap = ProgresSiswa::where('user_id', $user->id)
+            ->where('jadwal_id', $jadwal->id)
+            ->get()
+            ->keyBy('bank_pertanyaan_id');
 
-        // Cek apakah ujian masih berlangsung
-        $jadwal = Jadwal::find($jadwalId);
-        $endTime = Carbon::parse($jadwal->tanggal_ujian->format('Y-m-d') . ' ' . $jadwal->jam_mulai)
-            ->addSeconds($this->durationToSeconds($jadwal->durasi));
-        if (now()->gt($endTime)) {
-            return response()->json(['success' => false, 'message' => 'Waktu ujian telah habis.'], 422);
-        }
+        // Format soal
+        $listSoal = $bankPertanyaan->map(function ($bp, $index) use ($progresMap) {
+            $progres = $progresMap->get($bp->id);
+            $jawabanTerpilih = $progres ? $progres->bank_jawaban_id : null;
+            $isRagu = $progres ? (bool) $progres->is_ragu : false;
 
-        // Simpan atau update progres
-        $progres = UjianProgres::updateOrCreate(
+            $pilihan = $bp->jawaban->sortBy('urutan')->map(function ($jawaban, $key) {
+                return [
+                    'db_id' => $jawaban->id,
+                    'label' => chr(65 + $key),
+                    'teks'  => $jawaban->teks_jawaban,
+                ];
+            });
+
+            return [
+                'id'               => $bp->id,
+                'nomor'            => $index + 1,
+                'pertanyaan'       => $bp->pertanyaan,
+                'gambar_soal'      => $bp->gambar_soal,
+                'pilihan'          => $pilihan,
+                'jawaban_terpilih' => $jawabanTerpilih,
+                'is_ragu'          => $isRagu,
+            ];
+        });
+
+        // ------------------------------------------------------------------
+        // 1. AMBIL / BUAT DATA UJIAN SISWA
+        // ------------------------------------------------------------------
+        $ujianSiswa = UjianSiswa::firstOrCreate(
             [
-                'user_id'            => $user->id,
-                'mapel_id'           => $request->mapel_id,
-                'jadwal_id'          => $jadwalId,
-                'bank_pertanyaan_id' => $request->soal_id,
+                'user_id'   => $user->id,
+                'jadwal_id' => $jadwal->id,
             ],
             [
-                'bank_jawaban_id' => $request->jawaban_id,
-                'is_ragu'         => $request->is_ragu,
+                'status'      => 'sedang mengerjakan',
+                'pelanggaran' => 0,
+                'mulai_ujian' => now(),
             ]
         );
 
-        return response()->json(['success' => true]);
-    }
+        $pelanggaran = $ujianSiswa->pelanggaran;
 
-    /**
-     * Catat pelanggaran (keluar halaman) (AJAX).
-     */
-    public function pelanggaran(Request $request)
-    {
-        $user = Auth::user();
-        $jadwalId = Session::get('ujian_jadwal_id');
-        if (!$jadwalId) {
-            return response()->json(['success' => false, 'message' => 'Sesi ujian tidak ditemukan.'], 422);
+        // ------------------------------------------------------------------
+        // 2. PERHITUNGAN SISA WAKTU (mulai_ujian + durasi)
+        // ------------------------------------------------------------------
+        // Parse waktu mulai ujian siswa
+        $waktuMulaiSiswa = \Carbon\Carbon::parse($ujianSiswa->mulai_ujian);
+
+        // Ambil jam, menit, detik dari durasi jadwal (misal '01:30:00')
+        $durasiParts = explode(':', $jadwal->durasi);
+        $jamDurasi   = (int) ($durasiParts[0] ?? 0);
+        $menitDurasi = (int) ($durasiParts[1] ?? 0);
+        $detikDurasi = (int) ($durasiParts[2] ?? 0);
+
+        // Waktu selesai siswa
+        $waktuSelesai = $waktuMulaiSiswa->copy()
+            ->addHours($jamDurasi)
+            ->addMinutes($menitDurasi)
+            ->addSeconds($detikDurasi);
+
+        $now = \Carbon\Carbon::now();
+
+        // Hitung sisa detik (jika sekarang melewati waktu selesai, set ke 0)
+        if ($now->greaterThanOrEqualTo($waktuSelesai)) {
+            $timeLeft = 0;
+        } else {
+            $timeLeft = $now->diffInSeconds($waktuSelesai, false);
         }
 
-        $pelanggaran = UjianPelanggaran::firstOrCreate(
-            ['user_id' => $user->id, 'jadwal_id' => $jadwalId],
-            ['jumlah_pelanggaran' => 0]
-        );
+        // ------------------------------------------------------------------
+        // PENGATURAN
+        // ------------------------------------------------------------------
+        $settingTombolSelesai = $jadwal->setting_tombol_selesai ?? 0; // dalam menit
+        $settingTombolSelesaiDetik = $settingTombolSelesai * 60;
 
-        $pelanggaran->increment('jumlah_pelanggaran');
-        $total = $pelanggaran->refresh()->jumlah_pelanggaran;
+        $settingAntiNyontek = $jadwal->setting_anti_nyontek ?? false;
+        $settingMaxPelanggaran = $jadwal->setting_max_pelanggaran ?? 3;
 
-        $max = config('exam.max_pelanggaran', 3);
-        $blocked = false;
-        if ($total >= $max) {
-            // Blokir user
-            $user->status = 'diblokir';
-            $user->save();
-            $blocked = true;
-        }
-
-        return response()->json([
-            'success' => true,
-            'total'   => $total,
-            'blocked' => $blocked,
+        return view('ujian.index', [
+            'jadwal'                => $jadwal,
+            'mapel'                 => $mapel,
+            'listSoal'              => $listSoal,
+            'timeLeft'              => (int) $timeLeft,
+            'settingTombolSelesai'  => $settingTombolSelesaiDetik,
+            'settingAntiNyontek'    => $settingAntiNyontek,
+            'settingMaxPelanggaran' => $settingMaxPelanggaran,
+            'pelanggaran'           => $pelanggaran,
         ]);
     }
 
+    public function simpan(Request $request)
+    {
+        try {
+            $request->validate([
+                'mapel_id'   => 'required|exists:mapel,id',
+                'soal_id'    => 'required|exists:bank_pertanyaan,id',
+                'jawaban_id' => 'nullable|exists:bank_jawaban,id',
+                'is_ragu'    => 'required|boolean',
+            ]);
+
+            $user = Auth::user();
+
+            $jadwal = Jadwal::where('mapel_id', $request->mapel_id)
+                ->where('status', 'aktif')
+                ->first();
+
+            if (!$jadwal) {
+                return response()->json(['error' => 'Jadwal ujian tidak ditemukan'], 404);
+            }
+
+            // Validasi waktu (uji apakah ujian masih berlangsung)
+            $tanggal = $jadwal->tanggal_ujian;
+            $tanggalStr = ($tanggal instanceof Carbon) ? $tanggal->toDateString() : substr($tanggal, 0, 10);
+            $jamMulai = $jadwal->jam_mulai;
+            $jamMulaiStr = ($jamMulai instanceof Carbon) ? $jamMulai->toTimeString() : substr($jamMulai, 0, 8);
+            $waktuMulai = Carbon::createFromFormat('Y-m-d H:i:s', $tanggalStr . ' ' . $jamMulaiStr);
+
+            $durasiParts = explode(':', $jadwal->durasi);
+            $waktuSelesai = $waktuMulai->copy()
+                ->addHours((int) ($durasiParts[0] ?? 0))
+                ->addMinutes((int) ($durasiParts[1] ?? 0))
+                ->addSeconds((int) ($durasiParts[2] ?? 0));
+
+            if (Carbon::now()->greaterThan($waktuSelesai)) {
+                return response()->json(['error' => 'Waktu ujian telah habis'], 403);
+            }
+
+            // ------------------------------------------------------------------
+            // SIMPAN PROGRES SECARA MANUAL (hindari error 1364)
+            // ------------------------------------------------------------------
+            $progres = ProgresSiswa::where('user_id', $user->id)
+                ->where('jadwal_id', $jadwal->id)
+                ->where('bank_pertanyaan_id', $request->soal_id)
+                ->first();
+
+            if ($progres) {
+                // Update data yang sudah ada
+                $progres->bank_jawaban_id = $request->jawaban_id;
+                $progres->is_ragu = $request->is_ragu;
+                $progres->save();
+            } else {
+                // Buat baru dengan semua field
+                ProgresSiswa::create([
+                    'user_id'            => $user->id,
+                    'jadwal_id'          => $jadwal->id,
+                    'bank_pertanyaan_id' => $request->soal_id,
+                    'bank_jawaban_id'    => $request->jawaban_id,
+                    'is_ragu'            => $request->is_ragu,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jawaban berhasil disimpan',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error simpan jawaban: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json(['error' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
+        }
+    }
+
     /**
-     * Blokir user dan logout (AJAX).
+     * Catat pelanggaran.
+     */
+    public function pelanggaran(Request $request)
+    {
+        try {
+            $request->validate(['mapel_id' => 'required|exists:mapel,id']);
+
+            $user = Auth::user();
+
+            $jadwal = Jadwal::where('mapel_id', $request->mapel_id)
+                ->where('status', 'aktif')
+                ->first();
+
+            if (!$jadwal) {
+                return response()->json(['error' => 'Jadwal ujian tidak ditemukan'], 404);
+            }
+
+            $ujianSiswa = UjianSiswa::where('user_id', $user->id)
+                ->where('jadwal_id', $jadwal->id)
+                ->first();
+
+            if (!$ujianSiswa) {
+                return response()->json(['error' => 'Data ujian siswa tidak ditemukan'], 404);
+            }
+
+            $ujianSiswa->increment('pelanggaran');
+            $total = $ujianSiswa->pelanggaran;
+
+            $maxPelanggaran = $jadwal->setting_max_pelanggaran ?? 3;
+            $blocked = $total >= $maxPelanggaran;
+
+            return response()->json([
+                'total'   => $total,
+                'blocked' => $blocked,
+                'max'     => $maxPelanggaran,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error pelanggaran: ' . $e->getMessage());
+            return response()->json(['error' => 'Terjadi kesalahan server'], 500);
+        }
+    }
+
+    /**
+     * Blokir user.
      */
     public function blokir(Request $request)
     {
-        $user = Auth::user();
-        $user->status = 'diblokir';
-        $user->save();
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-        // Hapus sesi ujian
-        Session::forget('ujian_jadwal_id');
-
-        return response()->json(['success' => true]);
+        return response()->json(['message' => 'User diblokir karena melanggar aturan ujian']);
     }
 
     /**
-     * Selesaikan ujian (POST).
+     * Selesaikan ujian.
      */
-    public function selesai(Jadwal $jadwal)
+    public function selesai(Request $request, $mapelId)
     {
         $user = Auth::user();
 
-        // Verifikasi sesi
-        if (Session::get('ujian_jadwal_id') != $jadwal->id) {
-            return redirect()->route('dashboard')->with('error', 'Akses tidak sah.');
-        }
-
-        // Update partisipasi
-        $partisipasi = UjianSiswa::where('user_id', $user->id)
-            ->where('jadwal_id', $jadwal->id)
+        $jadwal = Jadwal::where('mapel_id', $mapelId)
+            ->where('status', 'aktif')
             ->first();
 
-        if ($partisipasi) {
-            $partisipasi->status = 'selesai';
-            $partisipasi->selesai_ujian = now();
-            $partisipasi->save();
+        if ($jadwal) {
+            UjianSiswa::where('user_id', $user->id)
+                ->where('jadwal_id', $jadwal->id)
+                ->update([
+                    'status'        => 'selesai',
+                    'selesai_ujian' => now(),
+                ]);
+
+            session()->forget('akses_ujian_' . $jadwal->id);
         }
 
-        // Hapus sesi
-        Session::forget('ujian_jadwal_id');
-
-        return redirect()->route('dashboard')->with('success', 'Ujian selesai. Terima kasih!');
-    }
-
-    // Helper: konversi durasi format HH:MM:SS ke detik
-    private function durationToSeconds($durasi)
-    {
-        $parts = explode(':', $durasi);
-        $jam = (int)($parts[0] ?? 0);
-        $menit = (int)($parts[1] ?? 0);
-        $detik = (int)($parts[2] ?? 0);
-        return $jam * 3600 + $menit * 60 + $detik;
+        return redirect()->route('home')->with('success', 'Ujian selesai, terima kasih.');
     }
 }
