@@ -21,7 +21,7 @@ class Mapel extends Model
 
     public function bankPertanyaan()
     {
-        return $this->hasMany(Bank_pertanyaan::class, 'mapel_id');
+        return $this->hasMany(BankPertanyaan::class, 'mapel_id');
     }
 
     public function soal()

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Bank_pertanyaan extends Model
+class BankPertanyaan extends Model
 {
     protected $table = 'bank_pertanyaan';
     protected $guarded = [];
@@ -16,12 +16,12 @@ class Bank_pertanyaan extends Model
 
     public function jawaban()
     {
-        return $this->hasMany(Bank_jawaban::class, 'bank_pertanyaan_id');
+        return $this->hasMany(BankJawaban::class, 'bank_pertanyaan_id');
     }
 
     public function kunciJawaban()
     {
-        return $this->belongsTo(Bank_jawaban::class, 'kunci_jawaban_id');
+        return $this->belongsTo(BankJawaban::class, 'kunci_jawaban_id');
     }
 
     public function soal()

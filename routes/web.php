@@ -52,12 +52,14 @@ Route::post('/mapel/import', [MapelController::class, 'import'])->name('mapel.im
 Route::get('soal/manage/{jadwalId}/{mapelId}', [SoalController::class, 'manage'])->name('soal.manage');
 Route::put('soal/sync/{soal}', [SoalController::class, 'sync'])->name('soal.sync');
 
+Route::post('bank-pertanyaan/upload-tinymce', [BankPertanyaanController::class, 'uploadTinyMceImage'])
+    ->name('bank-pertanyaan.tinymce.upload');
+
 Route::get('bank-soal/{mapel}', [BankPertanyaanController::class, 'index'])->name('bank-pertanyaan.index');
 Route::post('bank-pertanyaan/{mapel}', [BankPertanyaanController::class, 'store'])->name('bank-pertanyaan.store');
 Route::get('bank-pertanyaan/{bank_pertanyaan}/edit', [BankPertanyaanController::class, 'edit'])->name('bank-pertanyaan.edit');
 Route::put('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::class, 'update'])->name('bank-pertanyaan.update');
 Route::delete('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::class, 'destroy'])->name('bank-pertanyaan.destroy');
-Route::post('bank-pertanyaan/upload-tinymce', [BankPertanyaanController::class, 'uploadTinyMceImage'])->name('bank-pertanyaan.tinymce.upload');
 
 Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 Route::post('/token/refresh', [TokenController::class, 'refreshToken'])->name('token.refresh');

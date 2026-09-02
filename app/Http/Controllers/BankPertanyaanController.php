@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BankPertanyaan;
+use App\Models\BankJawaban;
 use App\Models\Mapel;
-use App\Models\Bank_pertanyaan;
-use App\Models\Bank_jawaban;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
@@ -12,61 +12,106 @@ use Intervention\Image\Drivers\Gd\Driver;
 
 class BankPertanyaanController extends Controller
 {
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
     public function __construct()
     {
         $this->middleware('auth');
     }
 
     /**
-     * Tampilkan halaman manajemen soal untuk bank soal tertentu
+     * Tampilkan daftar soal untuk suatu mapel.
+     *
+     * @param  int  $mapel_id
+     * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function index(Mapel $mapel)
+    public function index($mapel_id)
     {
-        // Filter menggunakan kolom 'mapel_id' sesuai isi migrasi
-        $bank_pertanyaan = Bank_pertanyaan::with('jawaban')
-            ->where('mapel_id', $mapel->id)
+        $mapel = Mapel::findOrFail($mapel_id);
+        $bank_pertanyaan = BankPertanyaan::with('jawaban')
+            ->where('mapel_id', $mapel_id)
             ->orderBy('created_at', 'asc')
-            ->get();
-
-        // Kirim $mapel dan $bank_pertanyaan ke view
+            ->paginate(60);
         return view('mapel.bank_pertanyaan', compact('mapel', 'bank_pertanyaan'));
     }
 
+    /**
+     * Simpan soal baru beserta jawaban pilihan ganda.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $mapel_id
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function store(Request $request, $mapel_id)
     {
         $request->validate([
             'pertanyaan'    => 'required',
-            'jenis_soal'    => 'required',
+            'jenis_soal'    => 'required|in:pg,essay',
             'jawaban'       => 'nullable|array',
             'kunci_jawaban' => 'nullable',
         ]);
-        $soal = new Bank_pertanyaan();
+
+        // Buat soal
+        $soal = new BankPertanyaan();
         $soal->mapel_id = $mapel_id;
         $soal->pertanyaan = $request->pertanyaan;
         $soal->jenis_soal = $request->jenis_soal;
         $soal->bobot_nilai = $request->bobot_nilai ?? 1;
+        $soal->gambar_soal = null; // tidak digunakan di form saat ini
+        $soal->kunci_jawaban_id = null; // akan diisi setelah jawaban disimpan
         $soal->save();
+
+        // Jika jenis soal PG dan ada jawaban
         if ($request->jenis_soal == 'pg' && $request->has('jawaban')) {
+            $kunciIndex = $request->kunci_jawaban; // index jawaban benar (0..4)
+
             foreach ($request->jawaban as $key => $teks) {
-                $jawaban = new Bank_jawaban();
+                $jawaban = new BankJawaban();
                 $jawaban->bank_pertanyaan_id = $soal->id;
+                $jawaban->urutan = $key + 1; // urutan 1..5
                 $jawaban->teks_jawaban = $teks;
-                $jawaban->jawaban_benar = ((string) $request->kunci_jawaban === (string) $key);
+                $jawaban->gambar_jawaban = null;
+                $jawaban->jawaban_benar = ((string) $kunciIndex === (string) $key);
                 $jawaban->save();
+
+                // Jika ini jawaban benar, simpan id-nya ke soal
+                if ($jawaban->jawaban_benar) {
+                    $soal->kunci_jawaban_id = $jawaban->id;
+                }
             }
+
+            $soal->save(); // update kunci_jawaban_id
         }
+
         $this->cleanOrphanEditorImages();
+
         return redirect()
             ->back()
             ->with('success', 'Soal berhasil disimpan!');
     }
 
+    /**
+     * Tampilkan form edit soal.
+     *
+     * @param  int  $id
+     * @return \Illuminate\View\View
+     */
     public function edit($id)
     {
-        $soal = Bank_pertanyaan::with('jawaban')->findOrFail($id);
+        $soal = BankPertanyaan::with('jawaban')->findOrFail($id);
         return view('mapel.edit_pertanyaan', compact('soal'));
     }
 
+    /**
+     * Perbarui data soal dan jawaban.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -74,17 +119,22 @@ class BankPertanyaanController extends Controller
             'jawaban'    => 'nullable|array',
         ]);
 
-        $soal = Bank_pertanyaan::with('bank_jawaban')->findOrFail($id);
+        $soal = BankPertanyaan::with('jawaban')->findOrFail($id);
 
+        // Kumpulkan HTML lama untuk pembersihan gambar
         $oldPertanyaan = $soal->pertanyaan;
-        $oldJawabanHtml = $soal->bank_jawaban->pluck('teks_jawaban')->toArray();
+        $oldJawabanHtml = $soal->jawaban->pluck('teks_jawaban')->toArray();
 
+        // Update pertanyaan
         $soal->pertanyaan = $request->pertanyaan;
         $soal->save();
 
+        // Update jawaban
         if ($request->has('jawaban')) {
+            $kunciIndex = $request->kunci_jawaban;
+
             foreach ($request->jawaban as $jawabanId => $teks) {
-                $jawaban = Bank_jawaban::where('bank_pertanyaan_id', $soal->id)
+                $jawaban = BankJawaban::where('bank_pertanyaan_id', $soal->id)
                     ->where('id', $jawabanId)
                     ->first();
 
@@ -93,12 +143,20 @@ class BankPertanyaanController extends Controller
                 }
 
                 $jawaban->teks_jawaban = $teks;
-                $jawaban->jawaban_benar = ((string) $request->kunci_jawaban === (string) $jawabanId);
+                $jawaban->jawaban_benar = ((string) $kunciIndex === (string) $jawabanId);
                 $jawaban->save();
+
+                // Jika jawaban ini benar, set kunci_jawaban_id
+                if ($jawaban->jawaban_benar) {
+                    $soal->kunci_jawaban_id = $jawaban->id;
+                }
             }
+
+            $soal->save();
         }
 
-        $newJawabanHtml = Bank_jawaban::where('bank_pertanyaan_id', $soal->id)
+        // Bersihkan gambar yang tidak terpakai
+        $newJawabanHtml = BankJawaban::where('bank_pertanyaan_id', $soal->id)
             ->pluck('teks_jawaban')
             ->toArray();
 
@@ -111,25 +169,33 @@ class BankPertanyaanController extends Controller
         return redirect()
             ->route('bank-pertanyaan.index', $soal->mapel_id)
             ->with([
-                'success' => 'Soal dan Jawaban berhasil diperbarui!',
+                'success'   => 'Soal dan Jawaban berhasil diperbarui!',
                 'highlight' => $soal->id
             ]);
     }
 
+    /**
+     * Hapus soal beserta jawaban dan gambar terkait.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function destroy($id)
     {
-        $soal = Bank_pertanyaan::with('bank_jawaban')->findOrFail($id);
+        $soal = BankPertanyaan::with('jawaban')->findOrFail($id);
 
+        // Kumpulkan semua HTML untuk identifikasi gambar
         $allHtml = [];
         $allHtml[] = $soal->pertanyaan;
-        foreach ($soal->bank_jawaban as $jw) {
+        foreach ($soal->jawaban as $jw) {
             $allHtml[] = $jw->teks_jawaban;
         }
 
         $editorImages = $this->getEditorImagesFromMultipleHtml($allHtml);
         $soalId = $soal->id;
-        $soal->delete();
+        $soal->delete(); // cascade akan menghapus jawaban
 
+        // Hapus gambar yang hanya digunakan oleh soal ini
         foreach ($editorImages as $filename) {
             if (!$this->isEditorImageUsedInDatabase($filename, $soalId)) {
                 $this->deleteEditorImageFile($filename);
@@ -142,6 +208,8 @@ class BankPertanyaanController extends Controller
             ->back()
             ->with('success', 'Soal berhasil dihapus!');
     }
+
+    // ========== TINYMCE UPLOAD ==========
 
     public function uploadTinyMceImage(Request $request)
     {
@@ -167,8 +235,10 @@ class BankPertanyaanController extends Controller
         $path = $folder . '/' . $filename;
         $image->save($path, quality: 45);
 
+        // Upload ke R2
         Storage::disk('r2')->putFileAs('dokumen/gambar', new \Illuminate\Http\File($path), $filename);
 
+        // Hapus file sementara lokal
         if (file_exists($path)) {
             unlink($path);
         }
@@ -178,6 +248,7 @@ class BankPertanyaanController extends Controller
         ]);
     }
 
+    // ========== PEMBERSIHAN GAMBAR EDITOR ==========
 
     private function getEditorImagesFromHtml(?string $html): array
     {
@@ -208,12 +279,14 @@ class BankPertanyaanController extends Controller
 
     private function isEditorImageUsedInDatabase(string $filename, ?int $exceptSoalId = null): bool
     {
-        $usedInSoal = Bank_pertanyaan::query()
+        // Cek di tabel bank_pertanyaan
+        $usedInSoal = BankPertanyaan::query()
             ->when($exceptSoalId, fn($q) => $q->where('id', '!=', $exceptSoalId))
             ->where('pertanyaan', 'like', '%' . $filename . '%')
             ->exists();
 
-        $usedInJawaban = Bank_jawaban::query()
+        // Cek di tabel bank_jawaban
+        $usedInJawaban = BankJawaban::query()
             ->where('teks_jawaban', 'like', '%' . $filename . '%')
             ->exists();
 
