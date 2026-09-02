@@ -14,6 +14,22 @@ use Illuminate\Support\Facades\Validator;
 class JadwalUjianController extends Controller
 {
     /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
+     * Show the application dashboard.
+     *
+     * @return \Illuminate\Contracts\Support\Renderable
+     */
+
+    /**
      * Menampilkan daftar jadwal ujian untuk periode aktif
      */
     public function index()
