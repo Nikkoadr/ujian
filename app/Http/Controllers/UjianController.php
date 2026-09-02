@@ -3,163 +3,85 @@
 namespace App\Http\Controllers;
 
 use App\Models\BankPertanyaan;
-use App\Models\BankJawaban;
 use App\Models\Jadwal;
-use App\Models\Mapel;
 use App\Models\Soal;
 use App\Models\SoalBankPertanyaan;
 use App\Models\UjianPelanggaran;
-use App\Models\UjianPeserta;
+use App\Models\UjianSiswa;
 use App\Models\UjianProgres;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Validator;
 
 class UjianController extends Controller
 {
-    /**
-     * Dashboard siswa – menampilkan daftar ujian aktif.
-     */
-    public function dashboard()
+    public function __construct()
     {
-        $user = Auth::user();
-        $kelas = $user->kelas; // pastikan relasi ada di model User
-
-        // Ambil semua jadwal yang aktif dan sesuai dengan tingkat & kompetensi siswa
-        $daftarUjian = Jadwal::with(['mapel', 'partisipasi' => function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        }])
-            ->where('status', 'aktif')
-            ->whereHas('mapel', function ($query) use ($kelas) {
-                $query->where('tingkat_id', $kelas->tingkat_id)
-                    ->where(function ($q) use ($kelas) {
-                        $q->whereNull('kompetensi_keahlian_id')
-                            ->orWhere('kompetensi_keahlian_id', $kelas->kompetensi_keahlian_id);
-                    });
-            })
-            ->orderBy('tanggal_ujian')
-            ->orderBy('jam_mulai')
-            ->get();
-
-        return view('dashboard', compact('user', 'kelas', 'daftarUjian'));
+        $this->middleware('auth');
     }
 
-    /**
-     * Validasi token dan mulai sesi ujian.
-     */
-    public function validasi(Request $request)
-    {
-        $request->validate([
-            'ujian_id' => 'required|exists:jadwal,id',
-            'token'    => 'required|string|size:6',
-        ]);
-
-        $jadwal = Jadwal::with('mapel')->find($request->ujian_id);
-        $user   = Auth::user();
-
-        // Cek token
-        if ($jadwal->token !== $request->token) {
-            return response()->json(['success' => false, 'message' => 'Token tidak valid.'], 422);
-        }
-
-        // Cek apakah user berhak mengikuti ujian ini
-        $kelas = $user->kelas;
-        $mapel = $jadwal->mapel;
-        if (
-            $mapel->tingkat_id != $kelas->tingkat_id ||
-            ($mapel->kompetensi_keahlian_id && $mapel->kompetensi_keahlian_id != $kelas->kompetensi_keahlian_id)
-        ) {
-            return response()->json(['success' => false, 'message' => 'Anda tidak diperbolehkan mengikuti ujian ini.'], 403);
-        }
-
-        // Cek apakah ujian sudah lewat waktu
-        $endTime = Carbon::parse($jadwal->tanggal_ujian->format('Y-m-d') . ' ' . $jadwal->jam_mulai)
-            ->addSeconds($this->durationToSeconds($jadwal->durasi));
-        if (now()->gt($endTime)) {
-            return response()->json(['success' => false, 'message' => 'Waktu ujian telah habis.'], 422);
-        }
-
-        // Cek status user (tidak diblokir)
-        if ($user->status === 'diblokir') {
-            return response()->json(['success' => false, 'message' => 'Akun Anda diblokir.'], 403);
-        }
-
-        // Buat atau ambil data partisipasi
-        $partisipasi = UjianPeserta::firstOrCreate(
-            ['user_id' => $user->id, 'jadwal_id' => $jadwal->id],
-            ['status' => 'sedang mengerjakan', 'mulai_ujian' => now()]
-        );
-
-        // Jika sudah selesai, tidak boleh masuk lagi
-        if ($partisipasi->status === 'selesai') {
-            return response()->json(['success' => false, 'message' => 'Ujian ini sudah Anda selesaikan.'], 422);
-        }
-
-        // Simpan jadwal_id di session untuk keperluan penyimpanan jawaban
-        Session::put('ujian_jadwal_id', $jadwal->id);
-
-        return response()->json([
-            'success' => true,
-            'redirect' => route('ujian.show', $jadwal->id)
-        ]);
-    }
-
-    /**
-     * Tampilkan halaman ujian dengan daftar soal.
-     */
     public function showExam(Jadwal $jadwal)
     {
         $user = Auth::user();
 
-        // Pastikan session sesuai (atau user berhak)
-        if (Session::get('ujian_jadwal_id') != $jadwal->id) {
-            return redirect()->route('dashboard')->with('error', 'Akses tidak sah.');
+        // 1. Validasi session akses dari validasi token
+        if (Session::get('akses_ujian_' . $jadwal->id) !== $user->id) {
+            return redirect()->route('home')->with('error', 'Akses tidak sah. Silakan masukkan token terlebih dahulu.');
         }
 
-        // Cek partisipasi
-        $partisipasi = UjianPeserta::where('user_id', $user->id)
-            ->where('jadwal_id', $jadwal->id)
-            ->first();
+        // 2. Ambil / Buat sesi partisipasi
+        $partisipasi = UjianSiswa::firstOrCreate(
+            [
+                'user_id'   => $user->id,
+                'jadwal_id' => $jadwal->id,
+            ],
+            [
+                'status'      => 'sedang mengerjakan',
+                'mulai_ujian' => Carbon::now(),
+                'pelanggaran' => 0,
+            ]
+        );
 
-        if (!$partisipasi || $partisipasi->status === 'selesai') {
-            return redirect()->route('dashboard')->with('error', 'Ujian sudah selesai.');
+        // 3. Cek jika sudah selesai
+        if ($partisipasi->status === 'selesai') {
+            return redirect()->route('home')->with('error', 'Ujian sudah selesai dikerjakan.');
         }
 
-        // Ambil mapel
         $mapel = $jadwal->mapel;
 
-        // Ambil soal (bank_pertanyaan) yang terhubung dengan jadwal ini
+        // 4. Ambil paket soal
         $soal = Soal::where('jadwal_id', $jadwal->id)->first();
         if (!$soal) {
-            return redirect()->route('dashboard')->with('error', 'Soal belum tersedia.');
+            return redirect()->route('home')->with('error', 'Soal belum tersedia untuk jadwal ini.');
         }
 
-        // Ambil bank_pertanyaan melalui pivot
+        // 5. Ambil butir pertanyaan & opsi jawaban
         $bankPertanyaanIds = SoalBankPertanyaan::where('soal_id', $soal->id)
             ->pluck('bank_pertanyaan_id');
+
         $bankPertanyaan = BankPertanyaan::with(['jawaban' => function ($q) {
             $q->orderBy('urutan');
-        }])->whereIn('id', $bankPertanyaanIds)
-            ->orderBy('id') // urutan sesuai id (bisa disesuaikan)
+        }])
+            ->whereIn('id', $bankPertanyaanIds)
+            ->orderBy('id')
             ->get();
 
-        // Ambil progres user untuk soal-soal ini
+        // 6. Ambil progres pengerjaan
         $progres = UjianProgres::where('user_id', $user->id)
             ->where('jadwal_id', $jadwal->id)
             ->whereIn('bank_pertanyaan_id', $bankPertanyaanIds)
             ->get()
             ->keyBy('bank_pertanyaan_id');
 
-        // Bentuk data soal sesuai yang diharapkan view
+        // 7. Format data untuk view
         $listSoal = [];
         foreach ($bankPertanyaan as $index => $bp) {
             $pilihan = [];
             foreach ($bp->jawaban as $jwb) {
                 $pilihan[] = [
                     'db_id' => $jwb->id,
-                    'label' => chr(65 + $jwb->urutan), // A, B, C, D, ...
+                    'label' => chr(65 + $jwb->urutan),
                     'teks'  => $jwb->teks_jawaban ?? '',
                 ];
             }
@@ -169,7 +91,7 @@ class UjianController extends Controller
             if ($progres->has($bp->id)) {
                 $p = $progres->get($bp->id);
                 $jawabanTerpilih = $p->bank_jawaban_id;
-                $isRagu = $p->is_ragu;
+                $isRagu = (bool) $p->is_ragu;
             }
 
             $listSoal[] = [
@@ -183,21 +105,17 @@ class UjianController extends Controller
             ];
         }
 
-        // Hitung sisa waktu (dalam detik)
-        $endTime = Carbon::parse($jadwal->tanggal_ujian->format('Y-m-d') . ' ' . $jadwal->jam_mulai)
-            ->addSeconds($this->durationToSeconds($jadwal->durasi));
-        $timeLeft = max(0, now()->diffInSeconds($endTime, false));
+        // 8. Hitung sisa waktu
+        $tglStr = Carbon::parse($jadwal->tanggal_ujian)->format('Y-m-d');
+        $jamMulaiStr = Carbon::parse($jadwal->jam_mulai)->format('H:i:s');
+        $endTime = Carbon::parse($tglStr . ' ' . $jamMulaiStr)->addSeconds($this->durationToSeconds($jadwal->durasi));
+        $timeLeft = max(0, (int) now()->diffInSeconds($endTime, false));
 
-        // Ambil pengaturan (contoh dari config atau database)
-        $settingTombolSelesai = config('exam.tombol_selesai', 300); // 5 menit sebelum habis
-        $settingAntiNyontek   = config('exam.anti_nyontek', true);
+        // Pengaturan ujian
+        $settingTombolSelesai  = config('exam.tombol_selesai', 300);
+        $settingAntiNyontek    = config('exam.anti_nyontek', true);
         $settingMaxPelanggaran = config('exam.max_pelanggaran', 3);
-
-        // Ambil jumlah pelanggaran saat ini
-        $pelanggaran = UjianPelanggaran::where('user_id', $user->id)
-            ->where('jadwal_id', $jadwal->id)
-            ->first();
-        $currentPelanggaran = $pelanggaran ? $pelanggaran->jumlah_pelanggaran : 0;
+        $currentPelanggaran    = $partisipasi->pelanggaran ?? 0;
 
         return view('ujian', compact(
             'mapel',
@@ -330,7 +248,7 @@ class UjianController extends Controller
         }
 
         // Update partisipasi
-        $partisipasi = UjianPeserta::where('user_id', $user->id)
+        $partisipasi = UjianSiswa::where('user_id', $user->id)
             ->where('jadwal_id', $jadwal->id)
             ->first();
 

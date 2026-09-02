@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Kelas;
 use App\Models\Pengawas;
-use App\Models\Jadwal;           // <-- tambahkan model Jadwal
-use App\Models\UjianPartisipasi; // <-- tambahkan model Partisipasi jika ada
+use App\Models\Jadwal;
+use App\Models\ProgresSiswa;
 use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
@@ -94,7 +94,7 @@ class HomeController extends Controller
 
             // Tambahkan status partisipasi siswa untuk setiap jadwal
             foreach ($daftarUjian as $ujian) {
-                $ujian->partisipasi = UjianPartisipasi::where('user_id', Auth::id())
+                $ujian->partisipasi = ProgresSiswa::where('user_id', Auth::id())
                     ->where('jadwal_id', $ujian->id)
                     ->first();
             }

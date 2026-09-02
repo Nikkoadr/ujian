@@ -63,7 +63,6 @@ Route::delete('bank-pertanyaan/{bank_pertanyaan}', [BankPertanyaanController::cl
 
 Route::get('/token', [TokenController::class, 'index'])->name('token.index');
 Route::post('/token/refresh', [TokenController::class, 'refreshToken'])->name('token.refresh');
-
 Route::post('/ujian/validasi', [TokenController::class, 'validasiToken'])->name('ujian.validasi');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
@@ -84,3 +83,14 @@ Route::middleware(['auth'])->group(function () {
         ->name('ujian-handler.update-waktu');
 });
 
+Route::middleware(['auth'])->prefix('ujian')->name('ujian.')->group(function () {
+
+    // 2. Halaman mulai pengerjaan ujian (tujuan redirect setelah token valid)
+    Route::get('/mulai/{jadwal_id}', [UjianController::class, 'showExam'])->name('mulai');
+
+    // 3. Endpoint autosave progres pengerjaan soal
+    Route::post('/simpan-progres/{jadwal_id}', [UjianController::class, 'simpanProgres'])->name('simpan.progres');
+
+    // 4. Submit selesai ujian
+    Route::post('/selesai/{jadwal_id}', [UjianController::class, 'selesai'])->name('selesai');
+});

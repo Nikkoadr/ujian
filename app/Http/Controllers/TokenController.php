@@ -67,7 +67,6 @@ class TokenController extends Controller
         $newToken = strtoupper(Str::random(6));
         $now = Carbon::now();
 
-        // Update token hanya untuk jadwal yang sedang aktif/berlangsung saat ini
         Jadwal::where('status', 'aktif')
             ->whereDate('tanggal_ujian', $now->toDateString())
             ->whereTime('jam_mulai', '<=', $now->toTimeString())
@@ -101,13 +100,17 @@ class TokenController extends Controller
         }
 
         $sekarang = Carbon::now();
-        $tanggalUjian = $jadwal->tanggal_ujian;
 
-        $mulai = Carbon::parse($tanggalUjian . ' ' . $jadwal->jam_mulai);
-        $selesai = Carbon::parse($tanggalUjian . ' ' . $jadwal->jam_selesai);
+        // Normalisasi format tanggal & jam agar tidak terjadi double date
+        $tglStr = Carbon::parse($jadwal->tanggal_ujian)->format('Y-m-d');
+        $jamMulaiStr = Carbon::parse($jadwal->jam_mulai)->format('H:i:s');
+        $jamSelesaiStr = Carbon::parse($jadwal->jam_selesai)->format('H:i:s');
+
+        $mulai   = Carbon::parse($tglStr . ' ' . $jamMulaiStr);
+        $selesai = Carbon::parse($tglStr . ' ' . $jamSelesaiStr);
 
         // Cek apakah hari ini sesuai dengan tanggal ujian
-        if (!$sekarang->isSameDay(Carbon::parse($tanggalUjian))) {
+        if (!$sekarang->isSameDay(Carbon::parse($tglStr))) {
             return response()->json([
                 'success' => false,
                 'message' => 'Ujian tidak tersedia hari ini.'
