@@ -10,8 +10,9 @@ use App\Models\User;
 use App\Models\Kelas;
 use App\Models\Pengawas;
 use App\Models\Jadwal;
-use App\Models\ProgresSiswa;
 use Illuminate\Support\Facades\DB;
+use App\Models\UjianSiswa;
+use Carbon\Carbon;
 
 class HomeController extends Controller
 {
@@ -23,7 +24,6 @@ class HomeController extends Controller
     public function index()
     {
         if (Gate::allows('admin')) {
-            // Bagian admin (tidak berubah)
             $totalSiswa = Siswa::count();
             $totalGuru = User::where('role_id', 2)->count();
             $totalPengawas = Pengawas::count();
@@ -73,14 +73,17 @@ class HomeController extends Controller
             if (!$siswa || !$siswa->kelas) {
                 return view('daftar_mapel', [
                     'daftarUjian' => [],
-                    'error' => 'Data Kelas belum diatur.'
+                    'siswa'       => null,
+                    'kelas'       => null,
+                    'user'        => $user,
+                    'error'       => 'Data Kelas belum diatur.'
                 ]);
             }
 
             $kelas = $siswa->kelas;
 
-            // Ambil jadwal ujian yang aktif hari ini dan sesuai dengan kelas siswa
-            $daftarUjian = Jadwal::with('mapel') // pastikan relasi mapel() ada di model Jadwal
+            // Ambil jadwal ujian aktif hari ini sesuai kelas siswa
+            $jadwals = Jadwal::with('mapel')
                 ->where('status', 'aktif')
                 ->whereDate('tanggal_ujian', $today)
                 ->whereHas('mapel', function ($query) use ($kelas) {
@@ -92,12 +95,37 @@ class HomeController extends Controller
                 })
                 ->get();
 
-            // Tambahkan status partisipasi siswa untuk setiap jadwal
-            foreach ($daftarUjian as $ujian) {
-                $ujian->partisipasi = ProgresSiswa::where('user_id', Auth::id())
-                    ->where('jadwal_id', $ujian->id)
+            // Format data bersih untuk konsumsi frontend (AlpineJS)
+            $daftarUjian = $jadwals->map(function ($jadwal) use ($user) {
+                $partisipasi = UjianSiswa::where('user_id', $user->id)
+                    ->where('jadwal_id', $jadwal->id)
                     ->first();
-            }
+
+                // Format jam mulai dan jam selesai (HH:mm)
+                $jamMulai = $jadwal->jam_mulai ? Carbon::parse($jadwal->jam_mulai)->format('H:i') : '--:--';
+                $jamSelesai = $jadwal->jam_selesai ? Carbon::parse($jadwal->jam_selesai)->format('H:i') : '--:--';
+
+                // Hitung durasi murni dalam menit
+                $durasiStr = (string) ($jadwal->durasi instanceof Carbon ? $jadwal->durasi->toTimeString() : $jadwal->durasi);
+                $durasiCarbon = Carbon::createFromTimeString($durasiStr);
+                $totalMenit = ($durasiCarbon->hour * 60) + $durasiCarbon->minute;
+
+                return [
+                    'id'                     => $jadwal->id,
+                    'mapel_id'               => $jadwal->mapel_id,
+                    'nama_mapel'             => $jadwal->mapel->nama_mapel ?? '-',
+                    'kode_mapel'             => $jadwal->mapel->kode_mapel ?? '-',
+                    'kompetensi_keahlian_id' => $jadwal->mapel->kompetensi_keahlian_id ?? null,
+                    'tanggal_ujian'          => $jadwal->tanggal_ujian,
+                    'jam_mulai_format'       => $jamMulai,
+                    'jam_selesai_format'     => $jamSelesai,
+                    'durasi_menit'           => $totalMenit,
+                    'partisipasi'            => $partisipasi ? [
+                        'status'      => $partisipasi->status,
+                        'mulai_ujian' => $partisipasi->mulai_ujian ? Carbon::parse($partisipasi->mulai_ujian)->toIso8601String() : null,
+                    ] : null,
+                ];
+            });
 
             return view('daftar_mapel', compact('daftarUjian', 'siswa', 'kelas', 'user'));
         }

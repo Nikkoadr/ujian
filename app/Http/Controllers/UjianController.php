@@ -27,15 +27,19 @@ class UjianController extends Controller
             return redirect()->route('home')->with('error', 'Akun Anda ditangguhkan.');
         }
 
-        // 2. Cek Akses Token Ujian
-        if (session('akses_ujian_' . $jadwal->id) !== $user->id) {
-            return redirect()->route('home')->with('error', 'Akses ilegal. Silakan masuk melalui dashboard.');
+        // 2. Validasi Session & Token Realtime
+        $sessionUser  = (int) session('akses_ujian_' . $jadwal->id);
+        $sessionToken = trim((string) session('akses_ujian_token_' . $jadwal->id));
+        $dbToken      = trim((string) $jadwal->token);
+
+        if ($sessionUser !== (int) $user->id || strtoupper($sessionToken) !== strtoupper($dbToken)) {
+            return redirect()->route('home')->with('error', 'Token ujian telah diperbarui atau sesi habis. Silakan masukkan token terbaru.');
         }
 
         $mapel = $jadwal->mapel;
         $sekarang = Carbon::now();
 
-        // 3. Logika Partisipasi Siswa (Sama persis dengan cara lama, disesuaikan ke tabel ujian_siswa)
+        // 3. Logika Partisipasi Siswa (ujian_siswa)
         $partisipasi = DB::table('ujian_siswa')
             ->where('user_id', $user->id)
             ->where('jadwal_id', $jadwal->id)
@@ -58,15 +62,13 @@ class UjianController extends Controller
             $pelanggaran = $partisipasi->pelanggaran;
         }
 
-        $durasiStr = (string) ($jadwal->durasi instanceof \Carbon\Carbon ? $jadwal->durasi->toTimeString() : $jadwal->durasi);
-
-        // Parse jam, menit, detik secara aman
-        $durasiCarbon = \Carbon\Carbon::createFromTimeString($durasiStr);
+        // 4. Hitung Waktu Selesai & Sisa Waktu
+        $durasiStr = (string) ($jadwal->durasi instanceof Carbon ? $jadwal->durasi->toTimeString() : $jadwal->durasi);
+        $durasiCarbon = Carbon::createFromTimeString($durasiStr);
         $jam   = $durasiCarbon->hour;
         $menit = $durasiCarbon->minute;
         $detik = $durasiCarbon->second;
 
-        // Tambahkan waktu ke waktu mulai
         $waktuSelesai = $waktuMulai->copy()
             ->addHours($jam)
             ->addMinutes($menit)
@@ -74,12 +76,11 @@ class UjianController extends Controller
 
         $timeLeft = (int) floor($sekarang->diffInSeconds($waktuSelesai, false));
 
-        // Pengaman: Jika waktu habis langsung redirect ke home
         if ($timeLeft <= 0) {
             return redirect()->route('home')->with('error', 'Waktu ujian telah habis.');
         }
 
-        // 5. Ambil Bank Soal dari Tabel Pivot (soal_bank_pertanyaan)
+        // 5. Ambil Soal dari Pivot
         $bankPertanyaanIds = DB::table('soal_bank_pertanyaan')
             ->join('soal', 'soal.id', '=', 'soal_bank_pertanyaan.soal_id')
             ->where('soal.jadwal_id', $jadwal->id)
@@ -122,27 +123,34 @@ class UjianController extends Controller
             ];
         });
 
-        // 8. Pengaturan Ujian
-        $settingTombolSelesai = $jadwal->setting_tombol_selesai ?? 0;
-        $settingTombolSelesaiDetik = $settingTombolSelesai * 60;
+        // 8. Ambil Pengaturan dari Tabel Setting
+        $setting = DB::table('setting')->first();
+
+        // max_tombol_selesai di database Anda defaultnya 300 (dalam detik)
+        $maxTombolSelesaiDetik = (int) ($setting->max_tombol_selesai ?? 300);
+        $settingTombolSelesai  = $maxTombolSelesaiDetik > 0 ? $maxTombolSelesaiDetik : false;
+
+        $settingAntiNyontek    = (bool) ($setting->anti_nyontek ?? true);
+        $settingMaxPelanggaran = (int) ($setting->max_pelanggaran ?? 5);
 
         return view('ujian.index', [
             'jadwal'                => $jadwal,
             'mapel'                 => $mapel,
             'listSoal'              => $listSoal,
             'timeLeft'              => (int) $timeLeft,
-            'settingTombolSelesai'  => $settingTombolSelesaiDetik,
-            'settingAntiNyontek'    => $jadwal->setting_anti_nyontek ?? false,
-            'settingMaxPelanggaran' => $jadwal->setting_max_pelanggaran ?? 3,
-            'pelanggaran'           => $pelanggaran,
+            'settingTombolSelesai'  => $settingTombolSelesai,
+            'settingAntiNyontek'    => $settingAntiNyontek,
+            'settingMaxPelanggaran' => $settingMaxPelanggaran,
+            'pelanggaran'           => (int) $pelanggaran,
         ]);
     }
 
+    // Endpoint AJAX: POST /ujian/pelanggaran
     public function simpan(Request $request)
     {
         try {
             $request->validate([
-                'mapel_id'   => 'required|exists:mapel,id',
+                'jadwal_id'  => 'required|exists:jadwal,id',
                 'soal_id'    => 'required|exists:bank_pertanyaan,id',
                 'jawaban_id' => 'nullable|exists:bank_jawaban,id',
                 'is_ragu'    => 'required|boolean',
@@ -150,142 +158,142 @@ class UjianController extends Controller
 
             $user = Auth::user();
 
-            $jadwal = Jadwal::where('mapel_id', $request->mapel_id)
-                ->where('status', 'aktif')
-                ->first();
-
-            if (!$jadwal) {
-                return response()->json(['error' => 'Jadwal ujian tidak ditemukan'], 404);
+            if ($user->status === 'diblokir') {
+                return response()->json(['error' => 'Akun Anda ditangguhkan.'], 403);
             }
 
-            // Validasi waktu (uji apakah ujian masih berlangsung)
-            $tanggal = $jadwal->tanggal_ujian;
-            $tanggalStr = ($tanggal instanceof Carbon) ? $tanggal->toDateString() : substr($tanggal, 0, 10);
-            $jamMulai = $jadwal->jam_mulai;
-            $jamMulaiStr = ($jamMulai instanceof Carbon) ? $jamMulai->toTimeString() : substr($jamMulai, 0, 8);
-            $waktuMulai = Carbon::createFromFormat('Y-m-d H:i:s', $tanggalStr . ' ' . $jamMulaiStr);
+            $jadwal = Jadwal::findOrFail($request->jadwal_id);
 
-            $durasiParts = explode(':', $jadwal->durasi);
-            $waktuSelesai = $waktuMulai->copy()
-                ->addHours((int) ($durasiParts[0] ?? 0))
-                ->addMinutes((int) ($durasiParts[1] ?? 0))
-                ->addSeconds((int) ($durasiParts[2] ?? 0));
-
-            if (Carbon::now()->greaterThan($waktuSelesai)) {
-                return response()->json(['error' => 'Waktu ujian telah habis'], 403);
-            }
-
-            // ------------------------------------------------------------------
-            // SIMPAN PROGRES SECARA MANUAL (hindari error 1364)
-            // ------------------------------------------------------------------
-            $progres = ProgresSiswa::where('user_id', $user->id)
+            // Validasi sisa waktu berdasarkan waktu mulai individu siswa di tabel ujian_siswa
+            $partisipasi = DB::table('ujian_siswa')
+                ->where('user_id', $user->id)
                 ->where('jadwal_id', $jadwal->id)
-                ->where('bank_pertanyaan_id', $request->soal_id)
                 ->first();
 
-            if ($progres) {
-                // Update data yang sudah ada
-                $progres->bank_jawaban_id = $request->jawaban_id;
-                $progres->is_ragu = $request->is_ragu;
-                $progres->save();
-            } else {
-                // Buat baru dengan semua field
-                ProgresSiswa::create([
+            if (!$partisipasi || $partisipasi->status === 'selesai') {
+                return response()->json(['error' => 'Ujian sudah diselesaikan atau tidak valid.'], 403);
+            }
+
+            $waktuMulai = Carbon::parse($partisipasi->mulai_ujian);
+            $durasiStr = (string) ($jadwal->durasi instanceof Carbon ? $jadwal->durasi->toTimeString() : $jadwal->durasi);
+            $durasiCarbon = Carbon::createFromTimeString($durasiStr);
+
+            $waktuSelesai = $waktuMulai->copy()
+                ->addHours($durasiCarbon->hour)
+                ->addMinutes($durasiCarbon->minute)
+                ->addSeconds($durasiCarbon->second);
+
+            if (Carbon::now()->greaterThanOrEqualTo($waktuSelesai)) {
+                return response()->json(['error' => 'Waktu ujian telah habis.'], 403);
+            }
+
+            // Simpan / update progres jawaban siswa
+            ProgresSiswa::updateOrCreate(
+                [
                     'user_id'            => $user->id,
                     'jadwal_id'          => $jadwal->id,
                     'bank_pertanyaan_id' => $request->soal_id,
+                ],
+                [
                     'bank_jawaban_id'    => $request->jawaban_id,
-                    'is_ragu'            => $request->is_ragu,
-                ]);
-            }
+                    'is_ragu'            => (bool) $request->is_ragu,
+                ]
+            );
 
             return response()->json([
                 'success' => true,
-                'message' => 'Jawaban berhasil disimpan',
+                'message' => 'Jawaban berhasil disimpan.',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error simpan jawaban: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            return response()->json(['error' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
+            Log::error('Error simpan jawaban: ' . $e->getMessage());
+            return response()->json(['error' => 'Gagal menyimpan jawaban: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * Catat pelanggaran.
+     * 2. Catat pelanggaran siswa (Sinkron dengan handleViolation di AlpineJS)
      */
     public function pelanggaran(Request $request)
     {
         try {
-            $request->validate(['mapel_id' => 'required|exists:mapel,id']);
+            $request->validate([
+                'jadwal_id' => 'required|exists:jadwal,id',
+            ]);
 
             $user = Auth::user();
 
-            $jadwal = Jadwal::where('mapel_id', $request->mapel_id)
-                ->where('status', 'aktif')
-                ->first();
-
-            if (!$jadwal) {
-                return response()->json(['error' => 'Jadwal ujian tidak ditemukan'], 404);
-            }
+            // Ambil batas maksimal pelanggaran dari tabel setting global
+            $setting = DB::table('setting')->first();
+            $maxPelanggaran = (int) ($setting->max_pelanggaran ?? 5);
 
             $ujianSiswa = UjianSiswa::where('user_id', $user->id)
-                ->where('jadwal_id', $jadwal->id)
+                ->where('jadwal_id', $request->jadwal_id)
                 ->first();
 
             if (!$ujianSiswa) {
-                return response()->json(['error' => 'Data ujian siswa tidak ditemukan'], 404);
+                return response()->json(['error' => 'Data sesi ujian siswa tidak ditemukan.'], 404);
             }
 
             $ujianSiswa->increment('pelanggaran');
-            $total = $ujianSiswa->pelanggaran;
-
-            $maxPelanggaran = $jadwal->setting_max_pelanggaran ?? 3;
+            $total = (int) $ujianSiswa->pelanggaran;
             $blocked = $total >= $maxPelanggaran;
 
+            if ($blocked) {
+                User::where('id', $user->id)->update(['status' => 'diblokir']);
+            }
+
             return response()->json([
+                'success' => true,
                 'total'   => $total,
                 'blocked' => $blocked,
                 'max'     => $maxPelanggaran,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error pelanggaran: ' . $e->getMessage());
-            return response()->json(['error' => 'Terjadi kesalahan server'], 500);
+            Log::error('Error catat pelanggaran: ' . $e->getMessage());
+            return response()->json(['error' => 'Terjadi kesalahan pada server.'], 500);
         }
     }
 
     /**
-     * Blokir user.
+     * 3. Blokir user secara permanen (Sinkron dengan blokirUser di AlpineJS)
      */
     public function blokir(Request $request)
     {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $user = Auth::user();
 
-        return response()->json(['message' => 'User diblokir karena melanggar aturan ujian']);
+        if ($user) {
+            User::where('id', $user->id)->update(['status' => 'diblokir']);
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Akun telah diblokir karena melampaui batas pelanggaran ujian.'
+        ]);
     }
 
     /**
-     * Selesaikan ujian.
+     * 4. Selesaikan ujian (Sinkron dengan submitUjian / form-selesai)
      */
-    public function selesai(Request $request, $mapelId)
+    public function selesai(Request $request, Jadwal $jadwal)
     {
         $user = Auth::user();
-
-        $jadwal = Jadwal::where('mapel_id', $mapelId)
-            ->where('status', 'aktif')
-            ->first();
 
         if ($jadwal) {
             UjianSiswa::where('user_id', $user->id)
                 ->where('jadwal_id', $jadwal->id)
                 ->update([
                     'status'        => 'selesai',
-                    'selesai_ujian' => now(),
+                    'selesai_ujian' => Carbon::now(),
                 ]);
 
+            // Hapus sesi akses token ujian
             session()->forget('akses_ujian_' . $jadwal->id);
+            session()->forget('akses_ujian_token_' . $jadwal->id);
         }
 
-        return redirect()->route('home')->with('success', 'Ujian selesai, terima kasih.');
+        return redirect()->route('home')->with('success', 'Ujian telah berhasil diselesaikan.');
     }
 }

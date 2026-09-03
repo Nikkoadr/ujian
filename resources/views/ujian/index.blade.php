@@ -701,407 +701,396 @@
         @csrf
     </form>
 
-    <script>
-        function examHandler() {
-            return {
-                showMobileNav: false,
-                fontSize: 'medium',
-                timeLeft: Math.floor({{ $timeLeft }}),
-                settingTombolSelesai: @json($settingTombolSelesai),
-                settingAntiNyontek: @json($settingAntiNyontek),
-                currentIndex: 0,
-                listSoal: @json($listSoal),
-                pelanggaran: 0,
-                maxPelanggaran: @json($settingMaxPelanggaran),
-                isBlocked: false,
-                isSaving: false,
-                isOnline: navigator.onLine,
-                isProcessingViolation: false,
-                saveTimeout: null,
+<script>
+    function examHandler() {
+        return {
+            showMobileNav: false,
+            fontSize: 'medium',
+            timeLeft: Math.max(0, Math.floor({{ (int) $timeLeft }})),
+            settingTombolSelesai: @json($settingTombolSelesai),
+            settingAntiNyontek: @json($settingAntiNyontek),
+            currentIndex: 0,
+            listSoal: @json($listSoal),
+            pelanggaran: {{ (int) $pelanggaran }},
+            maxPelanggaran: @json($settingMaxPelanggaran),
+            isBlocked: false,
+            isSaving: false,
+            isOnline: navigator.onLine,
+            isProcessingViolation: false,
+            saveTimeout: null,
 
-                get currentSoal() {
-                    return this.listSoal[this.currentIndex];
-                },
+            get currentSoal() {
+                return this.listSoal[this.currentIndex] || {};
+            },
 
-                init() {
-                    this.startTimer();
+            init() {
+                this.startTimer();
+                this.refreshMath();
+                this.preloadNextImage();
+                this.setupProtection();
+
+                window.addEventListener('online', () => {
+                    this.isOnline = true;
+                });
+
+                window.addEventListener('offline', () => {
+                    this.isOnline = false;
+                });
+
+                // Jika saat masuk pelanggaran sudah mencapai batas maksimal
+                if (this.settingAntiNyontek && this.pelanggaran >= this.maxPelanggaran) {
+                    this.blokirUser();
+                }
+            },
+
+            setupProtection() {
+                if (!this.settingAntiNyontek) return;
+
+                const detectViolation = () => {
+                    if (
+                        document.visibilityState === 'hidden' &&
+                        !this.isBlocked &&
+                        !this.isProcessingViolation
+                    ) {
+                        this.handleViolation();
+                    }
+                };
+
+                document.addEventListener('visibilitychange', detectViolation);
+
+                window.addEventListener('blur', () => {
+                    setTimeout(detectViolation, 500);
+                });
+            },
+
+            async handleViolation() {
+                if (
+                    !this.settingAntiNyontek ||
+                    this.isBlocked ||
+                    this.isProcessingViolation
+                ) return;
+
+                this.isProcessingViolation = true;
+
+                try {
+                    const response = await fetch("{{ route('ujian.pelanggaran') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            jadwal_id: {{ $jadwal->id }}
+                        })
+                    });
+
+                    const data = await response.json();
+                    this.pelanggaran = data.total;
+
+                    if (data.blocked) {
+                        this.blokirUser();
+                    } else {
+                        await Swal.fire({
+                            title: 'Peringatan!',
+                            text: `Anda terdeteksi meninggalkan halaman ujian. Pelanggaran: (${this.pelanggaran}/${this.maxPelanggaran})`,
+                            icon: 'warning',
+                            confirmButtonColor: '#0ea5e9'
+                        });
+                    }
+
+                } catch (e) {
+                    console.error('Gagal mencatat pelanggaran:', e);
+                } finally {
+                    this.isProcessingViolation = false;
+                }
+            },
+
+            async blokirUser() {
+                this.isBlocked = true;
+
+                Swal.fire({
+                    title: 'AKUN DIBLOKIR!',
+                    text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...',
+                    icon: 'error',
+                    showConfirmButton: false,
+                    allowOutsideClick: false
+                });
+
+                try {
+                    await fetch("{{ route('ujian.blokir') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        }
+                    });
+                } finally {
+                    setTimeout(() => {
+                        document.getElementById('logout-form').submit();
+                    }, 2500);
+                }
+            },
+
+            async saveToDb() {
+                if (this.isBlocked) return false;
+
+                this.isSaving = true;
+
+                const payloadData = {
+                    jadwal_id: {{ $jadwal->id }},
+                    mapel_id: {{ $mapel->id }},
+                    soal_id: this.currentSoal.id,
+                    jawaban_id: this.currentSoal.jawaban_terpilih,
+                    is_ragu: this.currentSoal.is_ragu ? 1 : 0
+                };
+
+                try {
+                    const response = await fetch("{{ route('ujian.simpan') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify(payloadData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Gagal menyimpan jawaban');
+                    }
+
+                    this.isOnline = true;
+                    return true;
+
+                } catch (e) {
+                    console.error('Simpan gagal:', e);
+                    this.isOnline = false;
+
+                    Swal.fire({
+                        title: 'Koneksi Terputus',
+                        text: 'Jawaban belum tersimpan ke server. Periksa internet atau hubungi pengawas.',
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444'
+                    });
+
+                    return false;
+
+                } finally {
+                    setTimeout(() => {
+                        this.isSaving = false;
+                    }, 300);
+                }
+            },
+
+            handleSelect(db_id) {
+                if (!this.isOnline) {
+                    Swal.fire({
+                        title: 'Koneksi Terputus',
+                        text: 'Jawaban tidak dapat disimpan. Periksa internet lalu lanjutkan kembali.',
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444'
+                    });
+                    return;
+                }
+
+                const jawabanLama = this.currentSoal.jawaban_terpilih;
+                this.currentSoal.jawaban_terpilih = db_id;
+
+                clearTimeout(this.saveTimeout);
+
+                this.saveTimeout = setTimeout(async () => {
+                    const berhasil = await this.saveToDb();
+                    if (!berhasil) {
+                        this.currentSoal.jawaban_terpilih = jawabanLama;
+                    }
+                }, 300);
+            },
+
+            toggleRagu() {
+                if (!this.isOnline) {
+                    Swal.fire({
+                        title: 'Koneksi Terputus',
+                        text: 'Status ragu-ragu tidak dapat disimpan karena koneksi bermasalah.',
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444'
+                    });
+                    return;
+                }
+
+                const raguLama = this.currentSoal.is_ragu;
+                this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
+
+                clearTimeout(this.saveTimeout);
+
+                this.saveTimeout = setTimeout(async () => {
+                    const berhasil = await this.saveToDb();
+                    if (!berhasil) {
+                        this.currentSoal.is_ragu = raguLama;
+                    }
+                }, 300);
+            },
+
+            startTimer() {
+                const endTime = Date.now() + (this.timeLeft * 1000);
+
+                const timer = setInterval(() => {
+                    const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+                    this.timeLeft = remaining;
+
+                    if (remaining <= 0) {
+                        clearInterval(timer);
+                        this.submitUjian();
+                    }
+                }, 250);
+            },
+
+            formatTime(s) {
+                const total = Math.max(0, Math.floor(s || 0));
+                const h = Math.floor(total / 3600).toString().padStart(2, '0');
+                const m = Math.floor((total % 3600) / 60).toString().padStart(2, '0');
+                const sec = (total % 60).toString().padStart(2, '0');
+
+                return `${h}:${m}:${sec}`;
+            },
+
+            next() {
+                if (this.currentIndex < this.listSoal.length - 1) {
+                    this.currentIndex++;
                     this.refreshMath();
                     this.preloadNextImage();
-                    this.setupProtection();
+                    this.scrollToTop();
+                }
+            },
 
-                    window.addEventListener('online', () => {
-                        this.isOnline = true;
+            prev() {
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                    this.refreshMath();
+                    this.preloadNextImage();
+                    this.scrollToTop();
+                }
+            },
+
+            setFont(size) {
+                this.fontSize = size;
+                this.$nextTick(() => {
+                    this.refreshMath();
+                });
+            },
+
+            scrollToTop() {
+                const target = document.getElementById('exam-content');
+                if (target) {
+                    target.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
                     });
+                }
+            },
 
-                    window.addEventListener('offline', () => {
-                        this.isOnline = false;
-                    });
+            getNavClass(soal, index) {
+                if (this.currentIndex === index) {
+                    return 'bg-sky-600 border-sky-600 text-white shadow-lg scale-110 z-10';
+                }
+                if (soal.is_ragu) {
+                    return 'bg-amber-400 border-amber-400 text-white shadow-sm';
+                }
+                if (soal.jawaban_terpilih) {
+                    return 'bg-sky-100 border-sky-100 text-sky-700 shadow-sm';
+                }
+                return 'bg-white border-slate-100 text-slate-300';
+            },
 
-                    if (this.pelanggaran >= this.maxPelanggaran) {
-                        this.blokirUser();
+            confirmSelesai() {
+                if (
+                    this.settingTombolSelesai !== false &&
+                    this.timeLeft > this.settingTombolSelesai
+                ) return;
+
+                Swal.fire({
+                    title: 'Selesai Ujian?',
+                    text: 'Pastikan semua jawaban sudah terisi dengan benar.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Selesai',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#0ea5e9',
+                    cancelButtonColor: '#64748b'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.submitUjian();
                     }
-                },
+                });
+            },
 
-                setupProtection() {
-                    if (!this.settingAntiNyontek) return;
+            submitUjian() {
+                document.getElementById('form-selesai').submit();
+            },
 
-                    const detectViolation = () => {
-                        if (
-                            document.visibilityState === 'hidden' &&
-                            !this.isBlocked &&
-                            !this.isProcessingViolation
-                        ) {
-                            this.handleViolation();
-                        }
-                    };
-
-                    document.addEventListener('visibilitychange', detectViolation);
-
-                    window.addEventListener('blur', () => {
-                        setTimeout(detectViolation, 500);
-                    });
-                },
-
-                async handleViolation() {
-                    if (
-                        !this.settingAntiNyontek ||
-                        this.isBlocked ||
-                        this.isProcessingViolation
-                    ) return;
-
-                    this.isProcessingViolation = true;
-
-                    try {
-                        const response = await fetch("{{ route('ujian.pelanggaran') }}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify({
-                                mapel_id: {{ $mapel->id }}
-                            })
-                        });
-
-                        const data = await response.json();
-
-                        this.pelanggaran = data.total;
-
-                        if (data.blocked) {
-                            this.blokirUser();
-                        } else {
-                            await Swal.fire({
-                                title: 'Peringatan!',
-                                text: `Anda terdeteksi meninggalkan halaman ujian. Pelanggaran: (${this.pelanggaran}/${this.maxPelanggaran})`,
-                                icon: 'warning',
-                                confirmButtonColor: '#0ea5e9'
-                            });
-                        }
-
-                    } catch (e) {
-                        console.error('Gagal mencatat pelanggaran:', e);
-                    } finally {
-                        this.isProcessingViolation = false;
+            logoutConfirm() {
+                Swal.fire({
+                    title: 'Keluar?',
+                    text: 'Sesi ujian akan tetap berjalan. Anda bisa masuk kembali selama waktu tersedia.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Keluar',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#64748b'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        document.getElementById('logout-form').submit();
                     }
-                },
+                });
+            },
 
-                async blokirUser() {
-                    this.isBlocked = true;
+            preloadNextImage() {
+                const nextSoal = this.listSoal[this.currentIndex + 1];
+                if (!nextSoal) return;
 
-                    Swal.fire({
-                        title: 'AKUN DIBLOKIR!',
-                        text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...',
-                        icon: 'error',
-                        showConfirmButton: false
-                    });
+                if (nextSoal.gambar_soal) {
+                    const img = new Image();
+                    img.src = nextSoal.gambar_soal;
+                }
 
-                    try {
-                        await fetch("{{ route('ujian.blokir') }}", {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
-                        });
-                    } finally {
-                        setTimeout(() => {
-                            document.getElementById('logout-form').submit();
-                        }, 3000);
-                    }
-                },
-
-                async saveToDb() {
-                    if (this.isBlocked) return false;
-
-                    this.isSaving = true;
-
-                    const payloadData = {
-                        mapel_id: {{ $mapel->id }},
-                        soal_id: this.currentSoal.id,
-                        jawaban_id: this.currentSoal.jawaban_terpilih,
-                        is_ragu: this.currentSoal.is_ragu
-                    };
-
-                    try {
-                        const response = await fetch("{{ route('ujian.simpan') }}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify(payloadData)
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Gagal menyimpan jawaban');
-                        }
-
-                        this.isOnline = true;
-                        return true;
-
-                    } catch (e) {
-                        console.error('Simpan gagal:', e);
-
-                        this.isOnline = false;
-
-                        Swal.fire({
-                            title: 'Koneksi Terputus',
-                            text: 'Jawaban belum tersimpan ke server. Periksa internet atau hubungi pengawas.',
-                            icon: 'error',
-                            confirmButtonColor: '#ef4444'
-                        });
-
-                        return false;
-
-                    } finally {
-                        setTimeout(() => {
-                            this.isSaving = false;
-                        }, 400);
-                    }
-                },
-
-                handleSelect(db_id) {
-                    if (!this.isOnline) {
-                        Swal.fire({
-                            title: 'Koneksi Terputus',
-                            text: 'Jawaban tidak dapat disimpan. Periksa internet lalu lanjutkan kembali.',
-                            icon: 'error',
-                            confirmButtonColor: '#ef4444'
-                        });
-
-                        return;
-                    }
-
-                    const jawabanLama = this.currentSoal.jawaban_terpilih;
-                    this.currentSoal.jawaban_terpilih = db_id;
-
-                    clearTimeout(this.saveTimeout);
-
-                    this.saveTimeout = setTimeout(async () => {
-                        const berhasil = await this.saveToDb();
-
-                        if (!berhasil) {
-                            this.currentSoal.jawaban_terpilih = jawabanLama;
-                        }
-                    }, 300);
-                },
-
-                toggleRagu() {
-                    if (!this.isOnline) {
-                        Swal.fire({
-                            title: 'Koneksi Terputus',
-                            text: 'Status ragu-ragu tidak dapat disimpan karena koneksi bermasalah.',
-                            icon: 'error',
-                            confirmButtonColor: '#ef4444'
-                        });
-
-                        return;
-                    }
-
-                    const raguLama = this.currentSoal.is_ragu;
-                    this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
-
-                    clearTimeout(this.saveTimeout);
-
-                    this.saveTimeout = setTimeout(async () => {
-                        const berhasil = await this.saveToDb();
-
-                        if (!berhasil) {
-                            this.currentSoal.is_ragu = raguLama;
-                        }
-                    }, 300);
-                },
-
-                startTimer() {
-                    const endTime = Date.now() + (this.timeLeft * 1000);
-
-                    const timer = setInterval(() => {
-                        const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-
-                        this.timeLeft = remaining;
-
-                        if (remaining <= 0) {
-                            clearInterval(timer);
-                            this.submitUjian();
-                        }
-                    }, 250);
-                },
-
-                formatTime(s) {
-                    const h = Math.floor(s / 3600).toString().padStart(2, '0');
-                    const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
-                    const sec = (s % 60).toString().padStart(2, '0');
-
-                    return `${h}:${m}:${sec}`;
-                },
-
-                next() {
-                    if (this.currentIndex < this.listSoal.length - 1) {
-                        this.currentIndex++;
-                        this.refreshMath();
-                        this.preloadNextImage();
-                        this.scrollToTop();
-                    }
-                },
-
-                prev() {
-                    if (this.currentIndex > 0) {
-                        this.currentIndex--;
-                        this.refreshMath();
-                        this.preloadNextImage();
-                        this.scrollToTop();
-                    }
-                },
-
-                setFont(size) {
-                    this.fontSize = size;
-
-                    this.$nextTick(() => {
-                        this.refreshMath();
-                    });
-                },
-
-                scrollToTop() {
-                    const target = document.getElementById('exam-content');
-
-                    if (target) {
-                        target.scrollTo({
-                            top: 0,
-                            behavior: 'smooth'
-                        });
-                    }
-                },
-
-                getNavClass(soal, index) {
-                    if (this.currentIndex === index) {
-                        return 'bg-sky-600 border-sky-600 text-white shadow-lg scale-110 z-10';
-                    }
-
-                    if (soal.is_ragu) {
-                        return 'bg-amber-400 border-amber-400 text-white shadow-sm';
-                    }
-
-                    if (soal.jawaban_terpilih) {
-                        return 'bg-sky-100 border-sky-100 text-sky-700 shadow-sm';
-                    }
-
-                    return 'bg-white border-slate-100 text-slate-300';
-                },
-
-                confirmSelesai() {
-                    if (
-                        this.settingTombolSelesai !== false &&
-                        this.timeLeft > this.settingTombolSelesai
-                    ) return;
-
-                    Swal.fire({
-                        title: 'Selesai Ujian?',
-                        text: 'Pastikan semua jawaban sudah terisi dengan benar.',
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: 'Ya, Selesai',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#0ea5e9',
-                        cancelButtonColor: '#64748b'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            this.submitUjian();
-                        }
-                    });
-                },
-
-                submitUjian() {
-                    document.getElementById('form-selesai').submit();
-                },
-
-                logoutConfirm() {
-                    Swal.fire({
-                        title: 'Keluar?',
-                        text: 'Sesi ujian akan tetap berjalan. Anda bisa masuk kembali selama waktu tersedia.',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Ya, Keluar',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#ef4444',
-                        cancelButtonColor: '#64748b'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            document.getElementById('logout-form').submit();
-                        }
-                    });
-                },
-
-                preloadNextImage() {
-                    const nextSoal = this.listSoal[this.currentIndex + 1];
-
-                    if (!nextSoal) return;
-
-                    if (nextSoal.gambar_soal) {
+                if (nextSoal.pertanyaan) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = nextSoal.pertanyaan;
+                    tempDiv.querySelectorAll('img').forEach((image) => {
                         const img = new Image();
-                        img.src = nextSoal.gambar_soal;
-                    }
+                        img.src = image.src;
+                    });
+                }
 
-                    if (nextSoal.pertanyaan) {
+                if (nextSoal.pilihan) {
+                    nextSoal.pilihan.forEach((opt) => {
+                        if (!opt.teks) return;
                         const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = nextSoal.pertanyaan;
-
+                        tempDiv.innerHTML = opt.teks;
                         tempDiv.querySelectorAll('img').forEach((image) => {
                             const img = new Image();
                             img.src = image.src;
                         });
-                    }
-
-                    if (nextSoal.pilihan) {
-                        nextSoal.pilihan.forEach((opt) => {
-                            if (!opt.teks) return;
-
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = opt.teks;
-
-                            tempDiv.querySelectorAll('img').forEach((image) => {
-                                const img = new Image();
-                                img.src = image.src;
-                            });
-                        });
-                    }
-                },
-
-                refreshMath() {
-                    this.$nextTick(() => {
-                        if (!window.MathJax) return;
-
-                        const target = document.getElementById('exam-content');
-
-                        if (target) {
-                            MathJax.typesetClear([target]);
-                            MathJax.typesetPromise([target]).catch((err) => {
-                                console.error('MathJax render error:', err);
-                            });
-                        }
                     });
                 }
+            },
+
+            refreshMath() {
+                this.$nextTick(() => {
+                    if (!window.MathJax) return;
+                    const target = document.getElementById('exam-content');
+                    if (target) {
+                        MathJax.typesetClear([target]);
+                        MathJax.typesetPromise([target]).catch((err) => {
+                            console.error('MathJax render error:', err);
+                        });
+                    }
+                });
             }
-        }
-    </script>
+        };
+    }
+</script>
 </body>
 </html>

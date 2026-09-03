@@ -3,41 +3,44 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard Ujian - SMK Muhammadiyah Kandanghaur</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800" rel="stylesheet" />
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+        }
         [x-cloak] { display: none !important; }
     </style>
 </head>
 
 <body class="h-full text-slate-700" x-data="dashboardHandler()" x-init="init()">
-
-    <!-- Header -->
     <header class="bg-sky-800 text-white shadow-md z-[100] relative">
         <div class="max-w-[1440px] mx-auto px-4 h-14 sm:h-20 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <img src="{{ asset('assets/img/logo.png') }}" class="w-7 h-7 sm:w-9 sm:h-9 object-contain" alt="Logo">
+                <img src="{{ asset('assets/img/logo.png') }}" class="w-7 h-7 sm:w-9 sm:h-9 object-contain">
                 <div class="leading-none">
                     <h1 class="text-sm sm:text-lg font-extrabold tracking-tight">CBT</h1>
-                    <p class="text-[7px] sm:text-[9px] font-bold opacity-70 uppercase tracking-widest">Digital Assessment</p>
+                    <p class="text-[7px] sm:text-[9px] font-bold opacity-70 uppercase tracking-widest">
+                        Digital Assessment
+                    </p>
                 </div>
             </div>
             <div class="flex items-center gap-4">
                 <div class="text-right hidden sm:block">
-                    <p class="text-[10px] font-bold text-sky-200 uppercase tracking-wider">{{ $user->nama }}</p>
-                    <p class="text-[9px] font-bold text-sky-400 uppercase tracking-widest">{{ $kelas->nama_kelas }}</p>
+                    <p class="text-[10px] font-bold text-sky-200 uppercase tracking-wider">
+                        {{ $user->nama ?? '-' }}
+                    </p>
+                    <p class="text-[9px] font-bold text-sky-400 uppercase tracking-widest">
+                        {{ $kelas->nama_kelas ?? '-' }}
+                    </p>
                 </div>
                 <div class="h-8 w-[1px] bg-white/10 hidden sm:block"></div>
                 <form action="{{ route('logout') }}" method="POST">
                     @csrf
-                    <button type="submit" class="bg-white/10 p-2 rounded-lg hover:bg-red-500 transition-colors">
+                    <button class="bg-white/10 p-2 rounded-lg hover:bg-red-500 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -48,36 +51,45 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
-
-        @if(session('error') || isset($error))
+        @if(isset($error))
             <div class="mb-8 bg-amber-50 border-2 border-amber-100 p-5 rounded-[2rem] flex items-center gap-4">
-                <div class="text-amber-600 font-bold text-sm">{{ session('error') ?? $error }}</div>
+                <div class="text-amber-600 font-bold text-sm">
+                    {{ $error }}
+                </div>
             </div>
         @endif
 
-        <!-- Profil -->
-        <div class="bg-white rounded-[2.5rem] p-6 mb-8 border border-slate-200 flex flex-col md:flex-row gap-6 justify-between items-center">
-            <div class="flex items-center gap-4 w-full md:w-auto">
-                <div class="w-16 h-16 bg-sky-100 text-sky-600 rounded-3xl flex items-center justify-center text-2xl font-black">
-                    {{ substr($user->nama, 0, 1) }}
+        @if($kelas)
+            <div class="bg-white rounded-[2.5rem] p-6 mb-8 border border-slate-200 flex flex-col md:flex-row gap-6 justify-between items-center">
+                <div class="flex items-center gap-4 w-full md:w-auto">
+                    <div class="w-16 h-16 bg-sky-100 text-sky-600 rounded-3xl flex items-center justify-center text-2xl font-black">
+                        {{ substr($user->nama, 0, 1) }}
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-black text-slate-800 tracking-tight">
+                            {{ $user->nama }}
+                        </h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                            {{ $kelas->tingkat->nama_tingkat ?? '' }}
+                            |
+                            {{ $kelas->kompetensi_keahlian->nama_kompetensi ?? '' }}
+                            |
+                            {{ $kelas->nama_kelas ?? '' }}
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h2 class="text-lg font-black text-slate-800 tracking-tight">{{ $user->nama }}</h2>
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        {{ $kelas->tingkat->nama_tingkat ?? '' }} | {{ $kelas->kompetensi_keahlian->nama_kompetensi ?? '' }} | {{ $kelas->nama_kelas ?? '' }}
-                    </p>
+                <div class="w-full md:w-80 relative">
+                    <input type="text"
+                        x-model="searchQuery"
+                        placeholder="Cari mata pelajaran..."
+                        class="w-full pl-12 pr-6 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-sky-500 focus:bg-white transition-all text-sm font-bold">
+                    <svg class="w-5 h-5 absolute left-4 top-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                 </div>
             </div>
-            <div class="w-full md:w-80 relative">
-                <input type="text" x-model="searchQuery" placeholder="Cari mata pelajaran..."
-                       class="w-full pl-12 pr-6 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-sky-500 focus:bg-white transition-all text-sm font-bold">
-                <svg class="w-5 h-5 absolute left-4 top-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </div>
-        </div>
+        @endif
 
-        <!-- Status blokir / tidak aktif -->
         @if(Auth::user()->status === 'diblokir')
             <div class="mb-8 bg-red-50 border-2 border-red-100 p-5 rounded-[2rem] flex items-center gap-4">
                 <div class="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">!</div>
@@ -86,7 +98,7 @@
                     <p class="text-xs font-bold text-red-500 opacity-80">Akun Anda sedang ditangguhkan.</p>
                 </div>
             </div>
-        @elseif(Auth::user()->status === 'tidak_aktif')
+        @elseif(Auth::user()->status === 'tidak_aktif' || Auth::user()->status === 'nonaktif')
             <div class="mb-8 bg-amber-50 border-2 border-amber-100 p-5 rounded-[2rem] flex items-center gap-4">
                 <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold">!</div>
                 <div>
@@ -96,7 +108,6 @@
             </div>
         @endif
 
-        <!-- Daftar Ujian -->
         <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
             <span class="w-2 h-8 bg-sky-600 rounded-full"></span>
             Daftar Ujian Aktif
@@ -111,12 +122,12 @@
                             <div>
                                 <div class="flex gap-2 items-center">
                                     <span class="px-3 py-1 bg-sky-100 text-sky-700 text-[10px] font-black rounded-lg uppercase tracking-wider"
-                                          x-text="ujian.mapel?.kode_mapel || '-'"></span>
-                                    <span :class="ujian.mapel?.kompetensi_keahlian_id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'"
+                                          x-text="ujian.kode_mapel"></span>
+                                    <span :class="ujian.kompetensi_keahlian_id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'"
                                           class="px-2 py-1 text-[9px] font-black rounded-lg uppercase"
-                                          x-text="ujian.mapel?.kompetensi_keahlian_id ? 'KK' : 'Umum'"></span>
+                                          x-text="ujian.kompetensi_keahlian_id ? 'KK' : 'Umum'"></span>
                                 </div>
-                                <h3 class="text-xl font-bold text-slate-800 mt-2" x-text="ujian.mapel?.nama_mapel || '-'"></h3>
+                                <h3 class="text-xl font-bold text-slate-800 mt-2" x-text="ujian.nama_mapel"></h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-[10px] font-bold text-slate-400 uppercase">Durasi</p>
@@ -137,29 +148,52 @@
 
                         <div class="space-y-2">
                             @if(Auth::user()->status === 'aktif')
-                                <template x-if="!ujian.partisipasi && isUjianTerlewat(ujian)">
-                                    <button disabled class="w-full py-4 bg-red-100 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">Ujian Sudah Terlewat</button>
-                                </template>
-                                <template x-if="!ujian.partisipasi && isUjianBelumMulai(ujian)">
-                                    <button disabled class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">Ujian Belum Dimulai</button>
-                                </template>
-                                <template x-if="!ujian.partisipasi && !isUjianBelumMulai(ujian) && !isUjianTerlewat(ujian)">
-                                    <button @click="openModal(ujian)" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-sky-600 transition-all shadow-lg">Mulai Ujian</button>
-                                </template>
-                                <template x-if="ujian.partisipasi && ujian.partisipasi.status === 'sedang mengerjakan' && isWaktuPartisipasiHabis(ujian)">
-                                    <button disabled class="w-full py-4 bg-red-100 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">Waktu Ujian Habis</button>
-                                </template>
-                                <template x-if="ujian.partisipasi && ujian.partisipasi.status === 'sedang mengerjakan' && !isWaktuPartisipasiHabis(ujian)">
-                                    <button @click="openModal(ujian)" class="w-full py-4 bg-amber-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg flex flex-col items-center">
-                                        <span>Lanjutkan Ujian</span>
-                                        <span class="text-[10px] mt-1 opacity-80" x-text="'Sisa: ' + calculateRemaining(ujian)"></span>
+                                {{-- 1. Ujian Selesai Dikerjakan --}}
+                                <template x-if="ujian.partisipasi && ujian.partisipasi.status === 'selesai'">
+                                    <button disabled class="w-full py-4 bg-emerald-100 text-emerald-600 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+                                        Ujian Selesai
                                     </button>
                                 </template>
-                                <template x-if="ujian.partisipasi && ujian.partisipasi.status === 'selesai'">
-                                    <button disabled class="w-full py-4 bg-emerald-100 text-emerald-600 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">Ujian Selesai</button>
+
+                                {{-- 2. Sedang Mengerjakan tapi Waktu Habis --}}
+                                <template x-if="ujian.partisipasi && ujian.partisipasi.status === 'sedang mengerjakan' && isWaktuPartisipasiHabis(ujian)">
+                                    <button disabled class="w-full py-4 bg-red-100 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+                                        Waktu Ujian Habis
+                                    </button>
+                                </template>
+
+                                {{-- 3. Sedang Mengerjakan dan Waktu Masih Ada --}}
+                                <template x-if="ujian.partisipasi && ujian.partisipasi.status === 'sedang mengerjakan' && !isWaktuPartisipasiHabis(ujian)">
+                                    <button @click="openModal(ujian)" class="w-full py-3 bg-amber-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg flex flex-col items-center">
+                                        <span>Lanjutkan Ujian</span>
+                                        <span class="text-[10px] mt-0.5 opacity-90 font-mono" x-text="'Sisa: ' + calculateRemaining(ujian)"></span>
+                                    </button>
+                                </template>
+
+                                {{-- 4. Belum Pernah Masuk & Jadwal Lewat Jam Selesai --}}
+                                <template x-if="!ujian.partisipasi && isUjianTerlewat(ujian)">
+                                    <button disabled class="w-full py-4 bg-red-100 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+                                        Ujian Sudah Terlewat
+                                    </button>
+                                </template>
+
+                                {{-- 5. Belum Pernah Masuk & Belum Jam Mulai --}}
+                                <template x-if="!ujian.partisipasi && isUjianBelumMulai(ujian)">
+                                    <button disabled class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+                                        Ujian Belum Dimulai
+                                    </button>
+                                </template>
+
+                                {{-- 6. Belum Pernah Masuk & Siap Dikerjakan --}}
+                                <template x-if="!ujian.partisipasi && !isUjianBelumMulai(ujian) && !isUjianTerlewat(ujian)">
+                                    <button @click="openModal(ujian)" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-sky-600 transition-all shadow-lg">
+                                        Mulai Ujian
+                                    </button>
                                 </template>
                             @else
-                                <button disabled class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">Ujian Terkunci</button>
+                                <button disabled class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+                                    Ujian Terkunci
+                                </button>
                             @endif
                         </div>
                     </div>
@@ -167,30 +201,33 @@
             </template>
 
             <div x-show="filteredUjian.length === 0" class="col-span-full py-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                <p class="font-bold text-slate-400">Tidak ada jadwal ujian aktif.</p>
+                <p class="font-bold text-slate-400">Tidak ada ujian aktif untuk kelas Anda saat ini.</p>
             </div>
         </div>
     </main>
 
-    <!-- Modal Token -->
+    {{-- Modal Konfirmasi Token --}}
     <div x-show="isModalOpen" x-cloak class="fixed inset-0 z-[110] overflow-y-auto">
         <div class="flex items-center justify-center min-h-screen px-4">
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md" @click="isModalOpen = false"></div>
             <div class="relative bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10">
                 <div class="text-center mb-8">
                     <h2 class="text-2xl font-black text-slate-800" x-text="selectedUjian?.partisipasi ? 'Konfirmasi Token Lanjutan' : 'Konfirmasi Token'"></h2>
-                    <p class="text-xs font-bold text-slate-400 mt-2 uppercase" x-text="selectedUjian?.mapel?.nama_mapel"></p>
+                    <p class="text-xs font-bold text-slate-400 mt-2 uppercase" x-text="selectedUjian?.nama_mapel"></p>
                 </div>
                 <div class="space-y-6">
-                    <input type="text" x-model="inputToken" @keyup.enter="prosesValidasi()" placeholder="INPUT TOKEN" maxlength="6"
-                           class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-sky-500 text-center font-black text-xl tracking-[0.3em] uppercase">
-                    
+                    <input type="text"
+                        x-model="inputToken"
+                        placeholder="INPUT TOKEN"
+                        class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-sky-500 text-center font-black text-xl tracking-[0.3em] uppercase">
                     <p x-show="errorMessage" x-text="errorMessage" class="text-red-500 text-xs font-bold text-center"></p>
-
                     <div class="flex gap-3">
-                        <button type="button" @click="isModalOpen = false" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-colors">Batal</button>
-                        <button type="button" @click="prosesValidasi()" :disabled="isLoading || !inputToken"
-                                class="flex-[2] py-4 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                        <button @click="isModalOpen = false" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase">
+                            Batal
+                        </button>
+                        <button @click="prosesValidasi()"
+                            :disabled="isLoading || !inputToken"
+                            class="flex-[2] py-4 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed">
                             <span x-text="isLoading ? 'Memproses...' : 'Masuk Ujian'"></span>
                         </button>
                     </div>
@@ -201,7 +238,7 @@
 
     <script>
         function dashboardHandler() {
-            const ujianData = @json($daftarUjian ?? []);
+            const ujianData = @json($daftarUjian);
 
             return {
                 isModalOpen: false,
@@ -218,88 +255,78 @@
                         this.currentTime = Date.now();
                     }, 1000);
 
-                    this.allUjian = ujianData.map(u => ({
+                    this.allUjian = (ujianData || []).map(u => ({
                         ...u,
-                        mapel: u.mapel || {},
-                        durasi_menit: this.convertDuration(u.durasi),
-                        jam_mulai_format: this.extractTime(u.jam_mulai),
-                        jam_selesai_format: this.extractTime(u.jam_selesai),
-                        partisipasi: Array.isArray(u.partisipasi) ? (u.partisipasi[0] || null) : (u.partisipasi || null)
+                        durasi_menit: u.durasi_menit || 0,
+                        jam_mulai_format: u.jam_mulai_format || '--:--',
+                        jam_selesai_format: u.jam_selesai_format || '--:--',
+                        partisipasi: u.partisipasi || null
                     }));
-                },
-
-                extractTime(timeString) {
-                    if (!timeString) return '--:--';
-                    const timeOnly = timeString.includes(' ') ? timeString.split(' ')[1] : timeString;
-                    return timeOnly.substring(0, 5);
-                },
-
-                convertDuration(durasi) {
-                    if (!durasi) return 0;
-                    const parts = durasi.split(':');
-                    const jam = parseInt(parts[0] || 0);
-                    const menit = parseInt(parts[1] || 0);
-                    return (jam * 60) + menit;
                 },
 
                 get filteredUjian() {
                     if (!this.searchQuery) return this.allUjian;
-                    return this.allUjian.filter(u => {
-                        const nama = (u.mapel?.nama_mapel || '').toLowerCase();
-                        const kode = (u.mapel?.kode_mapel || '').toLowerCase();
-                        const q = this.searchQuery.toLowerCase();
-                        return nama.includes(q) || kode.includes(q);
-                    });
+                    const query = this.searchQuery.toLowerCase();
+                    return this.allUjian.filter(u => 
+                        (u.nama_mapel || '').toLowerCase().includes(query) ||
+                        (u.kode_mapel || '').toLowerCase().includes(query)
+                    );
                 },
 
                 calculateRemaining(ujian) {
                     if (!ujian.partisipasi || !ujian.partisipasi.mulai_ujian) return '00:00';
-                    const startStr = ujian.partisipasi.mulai_ujian.replace(/-/g, '/');
-                    const start = new Date(startStr).getTime();
-                    if (isNaN(start)) return '00:00';
-
+                    const start = new Date(ujian.partisipasi.mulai_ujian).getTime();
                     const durationMs = ujian.durasi_menit * 60 * 1000;
                     const end = start + durationMs;
                     const diff = end - this.currentTime;
+
                     if (diff <= 0) return 'Waktu Habis';
 
                     const h = Math.floor(diff / 3600000);
                     const m = Math.floor((diff % 3600000) / 60000);
                     const s = Math.floor((diff % 60000) / 1000);
+
                     return `${h > 0 ? h + 'j ' : ''}${m}m ${s}s`;
                 },
 
                 isWaktuPartisipasiHabis(ujian) {
                     if (!ujian.partisipasi || !ujian.partisipasi.mulai_ujian) return false;
-                    const startStr = ujian.partisipasi.mulai_ujian.replace(/-/g, '/');
-                    const start = new Date(startStr).getTime();
-                    if (isNaN(start)) return false;
-
+                    const start = new Date(ujian.partisipasi.mulai_ujian).getTime();
                     const durationMs = ujian.durasi_menit * 60 * 1000;
                     return this.currentTime >= (start + durationMs);
                 },
 
                 isUjianBelumMulai(ujian) {
-                    if (!ujian.jam_mulai) return false;
+                    if (!ujian.jam_mulai_format || ujian.jam_mulai_format === '--:--') return false;
                     const now = new Date();
                     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
-                    const timeOnly = ujian.jam_mulai.includes(' ') ? ujian.jam_mulai.split(' ')[1] : ujian.jam_mulai;
-                    const waktu = timeOnly.split(':');
-                    const mulaiMinutes = (parseInt(waktu[0]) * 60) + parseInt(waktu[1]);
+                    const parts = ujian.jam_mulai_format.split(':');
+                    const mulaiMinutes = (parseInt(parts[0], 10) * 60) + parseInt(parts[1], 10);
                     return currentMinutes < mulaiMinutes;
                 },
 
                 isUjianTerlewat(ujian) {
-                    if (!ujian.jam_selesai) return false;
+                    if (!ujian.jam_selesai_format || ujian.jam_selesai_format === '--:--') return false;
                     const now = new Date();
                     const currentMinutes = (now.getHours() * 60) + now.getMinutes();
-                    const timeOnly = ujian.jam_selesai.includes(' ') ? ujian.jam_selesai.split(' ')[1] : ujian.jam_selesai;
-                    const waktu = timeOnly.split(':');
-                    const selesaiMinutes = (parseInt(waktu[0]) * 60) + parseInt(waktu[1]);
+                    const parts = ujian.jam_selesai_format.split(':');
+                    const selesaiMinutes = (parseInt(parts[0], 10) * 60) + parseInt(parts[1], 10);
                     return currentMinutes >= selesaiMinutes;
                 },
 
                 openModal(ujian) {
+                    if (this.isWaktuPartisipasiHabis(ujian)) {
+                        alert('Waktu ujian sudah habis.');
+                        return;
+                    }
+                    if (!ujian.partisipasi && this.isUjianTerlewat(ujian)) {
+                        alert('Waktu ujian sudah terlewat.');
+                        return;
+                    }
+                    if (!ujian.partisipasi && this.isUjianBelumMulai(ujian)) {
+                        alert('Ujian belum dimulai.');
+                        return;
+                    }
                     this.selectedUjian = ujian;
                     this.inputToken = '';
                     this.errorMessage = '';
@@ -311,8 +338,9 @@
                         this.errorMessage = 'Ujian tidak ditemukan.';
                         return;
                     }
-                    if (!this.inputToken || this.inputToken.length !== 6) {
-                        this.errorMessage = 'Token harus terdiri dari 6 karakter.';
+                    if (this.isWaktuPartisipasiHabis(this.selectedUjian)) {
+                        this.isModalOpen = false;
+                        alert('Waktu ujian sudah habis.');
                         return;
                     }
 
@@ -325,7 +353,7 @@
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
                             body: JSON.stringify({
                                 ujian_id: this.selectedUjian.id,
@@ -336,20 +364,18 @@
                         const result = await response.json();
 
                         if (response.ok && result.success) {
-                            // Redirect langsung ke lembar ujian
                             window.location.href = result.redirect;
                         } else {
                             this.errorMessage = result.message || 'Token tidak valid.';
-                            this.inputToken = '';
                         }
                     } catch (error) {
-                        console.error('Fetch Error:', error);
-                        this.errorMessage = 'Terjadi gangguan jaringan saat memverifikasi token.';
+                        console.error(error);
+                        this.errorMessage = 'Terjadi kesalahan koneksi.';
                     } finally {
                         this.isLoading = false;
                     }
                 }
-            }
+            };
         }
     </script>
 </body>

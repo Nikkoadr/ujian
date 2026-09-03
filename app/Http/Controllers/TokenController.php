@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Gate;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class TokenController extends Controller
 {
@@ -99,6 +100,7 @@ class TokenController extends Controller
             ], 403);
         }
 
+        $user = Auth::user();
         $sekarang = Carbon::now();
 
         // Normalisasi format tanggal dan jam
@@ -109,40 +111,52 @@ class TokenController extends Controller
         $mulai   = Carbon::parse($tglStr . ' ' . $jamMulaiStr);
         $selesai = Carbon::parse($tglStr . ' ' . $jamSelesaiStr);
 
-        // Cek tanggal pengerjaan
-        if (!$sekarang->isSameDay(Carbon::parse($tglStr))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Ujian tidak dijadwalkan untuk hari ini.'
-            ], 403);
-        }
+        // Cek apakah siswa sudah pernah mulai ujian
+        $partisipasi = DB::table('ujian_siswa')
+            ->where('user_id', $user->id)
+            ->where('jadwal_id', $jadwal->id)
+            ->first();
 
-        // Cek jam belum mulai
-        if ($sekarang->lt($mulai)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Ujian belum dimulai.'
-            ], 403);
-        }
+        // Validasi waktu hanya jika siswa BELUM pernah memulai ujian
+        if (!$partisipasi) {
+            // Cek tanggal pengerjaan
+            if (!$sekarang->isSameDay(Carbon::parse($tglStr))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ujian tidak dijadwalkan untuk hari ini.'
+                ], 403);
+            }
 
-        // Cek jam sudah selesai
-        if ($sekarang->gte($selesai)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Waktu ujian sudah berakhir.'
-            ], 403);
+            // Cek jam belum mulai
+            if ($sekarang->lt($mulai)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ujian belum dimulai.'
+                ], 403);
+            }
+
+            // Cek jam sudah selesai
+            if ($sekarang->gte($selesai)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Waktu ujian sudah berakhir.'
+                ], 403);
+            }
         }
 
         // Validasi kesesuaian token
-        if (strtoupper($jadwal->token) === strtoupper($request->token)) {
-            // Set session akses khusus user dan jadwal ini
-            session(['akses_ujian_' . $jadwal->id => Auth::id()]);
+        if (strtoupper(trim($jadwal->token)) === strtoupper(trim($request->token))) {
+            // Set session akses dan string token aktif
+            session([
+                'akses_ujian_' . $jadwal->id       => (int) $user->id,
+                'akses_ujian_token_' . $jadwal->id => trim($jadwal->token),
+            ]);
             session()->save();
 
             return response()->json([
                 'success'  => true,
                 'message'  => 'Token Valid!',
-                'redirect' => route('ujian.mulai', ['jadwal' => $jadwal->id])
+                'redirect' => route('ujian.mulai', ['jadwal' => $jadwal->id]) // Pastikan nama route sesuai web.php
             ]);
         }
 
