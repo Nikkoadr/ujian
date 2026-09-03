@@ -49,6 +49,18 @@ class MapelController extends Controller
         return redirect()->route('mapel.index')->with('success', 'Mapel berhasil ditambahkan.');
     }
 
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv',
+        ]);
+
+        $file = $request->file('file');
+        \Maatwebsite\Excel\Facades\Excel::import(new \App\Imports\MapelImport, $file);
+
+        return redirect()->route('mapel.index')->with('success', 'Data Mapel berhasil diimpor.');
+    }
+
     public function edit(Mapel $mapel)
     {
         $tingkats = Tingkat::all();
@@ -74,5 +86,4 @@ class MapelController extends Controller
         $mapel->delete();
         return redirect()->route('mapel.index')->with('success', 'Mapel dihapus.');
     }
-
 }

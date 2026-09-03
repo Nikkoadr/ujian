@@ -183,7 +183,7 @@ class SiswaController extends Controller
 
         // Reset pelanggaran jika status berubah dari diblokir menjadi aktif
         if ($sebelum == 'diblokir' && $user->status == 'aktif') {
-            DB::table('ujian_partisipasi')
+            DB::table('ujian_siswa')
                 ->where('user_id', $user->id)
                 ->update(['pelanggaran' => 0]);
         }

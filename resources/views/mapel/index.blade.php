@@ -117,7 +117,7 @@
                     <div class="form-group mt-4">
                         <label class="small font-weight-bold text-dark">Pilih File Excel</label>
                         <div class="custom-file">
-                            <input type="file" name="file_excel" class="custom-file-input" id="importFile" required>
+                            <input type="file" name="file" class="custom-file-input" id="importFile" required>
                             <label class="custom-file-label" for="importFile">Pilih file...</label>
                         </div>
                         <small class="text-muted mt-2 d-block">Gunakan format .xlsx atau .xls</small>
