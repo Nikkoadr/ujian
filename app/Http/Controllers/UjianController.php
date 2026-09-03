@@ -3,15 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Jadwal;
-use App\Models\UjianSiswa;
-use App\Models\ProgresSiswa;
 use App\Models\BankPertanyaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use App\Models\ProgresSiswa;
 
 class UjianController extends Controller
 {
@@ -123,15 +122,20 @@ class UjianController extends Controller
             ];
         });
 
-        // 8. Ambil Pengaturan dari Tabel Setting
         $setting = DB::table('setting')->first();
 
-        // max_tombol_selesai di database Anda defaultnya 300 (dalam detik)
-        $maxTombolSelesaiDetik = (int) ($setting->max_tombol_selesai ?? 300);
-        $settingTombolSelesai  = $maxTombolSelesaiDetik > 0 ? $maxTombolSelesaiDetik : false;
+        $settingAntiNyontek = (bool) ($setting->anti_nyontek ?? true);
 
-        $settingAntiNyontek    = (bool) ($setting->anti_nyontek ?? true);
-        $settingMaxPelanggaran = (int) ($setting->max_pelanggaran ?? 5);
+        if ($settingAntiNyontek) {
+            // Jika anti-contek AKTIF, terapkan batasan tombol & max pelanggaran
+            $maxTombolSelesaiDetik = (int) ($setting->max_tombol_selesai ?? 300);
+            $settingTombolSelesai  = $maxTombolSelesaiDetik > 0 ? $maxTombolSelesaiDetik : false;
+            $settingMaxPelanggaran = (int) ($setting->max_pelanggaran ?? 5);
+        } else {
+            // Jika anti-contek NONAKTIF, tiadakan semua batasan
+            $settingTombolSelesai  = false; // Tombol selesai langsung aktif bebas dipencet
+            $settingMaxPelanggaran = 0;     // Batasan pelanggaran ditiadakan
+        }
 
         return view('ujian.index', [
             'jadwal'                => $jadwal,
@@ -145,7 +149,6 @@ class UjianController extends Controller
         ]);
     }
 
-    // Endpoint AJAX: POST /ujian/pelanggaran
     public function simpan(Request $request)
     {
         try {
@@ -164,7 +167,7 @@ class UjianController extends Controller
 
             $jadwal = Jadwal::findOrFail($request->jadwal_id);
 
-            // Validasi sisa waktu berdasarkan waktu mulai individu siswa di tabel ujian_siswa
+            // Validasi sesi siswa
             $partisipasi = DB::table('ujian_siswa')
                 ->where('user_id', $user->id)
                 ->where('jadwal_id', $jadwal->id)
@@ -174,6 +177,7 @@ class UjianController extends Controller
                 return response()->json(['error' => 'Ujian sudah diselesaikan atau tidak valid.'], 403);
             }
 
+            // Validasi sisa waktu pengerjaan
             $waktuMulai = Carbon::parse($partisipasi->mulai_ujian);
             $durasiStr = (string) ($jadwal->durasi instanceof Carbon ? $jadwal->durasi->toTimeString() : $jadwal->durasi);
             $durasiCarbon = Carbon::createFromTimeString($durasiStr);
@@ -187,7 +191,7 @@ class UjianController extends Controller
                 return response()->json(['error' => 'Waktu ujian telah habis.'], 403);
             }
 
-            // Simpan / update progres jawaban siswa
+            // Simpan / update progres ke tabel progres_siswa
             ProgresSiswa::updateOrCreate(
                 [
                     'user_id'            => $user->id,
@@ -210,90 +214,144 @@ class UjianController extends Controller
         }
     }
 
-    /**
-     * 2. Catat pelanggaran siswa (Sinkron dengan handleViolation di AlpineJS)
-     */
     public function pelanggaran(Request $request)
     {
-        try {
-            $request->validate([
-                'jadwal_id' => 'required|exists:jadwal,id',
+        $request->validate([
+            'jadwal_id' => 'required|integer'
+        ]);
+
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $setting = DB::table('setting')->first();
+        $antiNyontek = (bool) ($setting->anti_nyontek ?? true);
+
+        if (!$antiNyontek) {
+            return response()->json([
+                'total'   => 0,
+                'blocked' => false
             ]);
+        }
 
-            $user = Auth::user();
+        $maxBoleh = (int) ($setting->max_pelanggaran ?? 5);
 
-            // Ambil batas maksimal pelanggaran dari tabel setting global
-            $setting = DB::table('setting')->first();
-            $maxPelanggaran = (int) ($setting->max_pelanggaran ?? 5);
+        $partisipasi = DB::table('ujian_siswa')
+            ->where('user_id', $user->id)
+            ->where('jadwal_id', $request->jadwal_id)
+            ->first();
 
-            $ujianSiswa = UjianSiswa::where('user_id', $user->id)
-                ->where('jadwal_id', $request->jadwal_id)
-                ->first();
+        if (!$partisipasi) {
+            return response()->json(['message' => 'Sesi ujian tidak ditemukan'], 404);
+        }
 
-            if (!$ujianSiswa) {
-                return response()->json(['error' => 'Data sesi ujian siswa tidak ditemukan.'], 404);
-            }
+        $total = (int) $partisipasi->pelanggaran + 1;
+        $isBlocked = $total >= $maxBoleh;
 
-            $ujianSiswa->increment('pelanggaran');
-            $total = (int) $ujianSiswa->pelanggaran;
-            $blocked = $total >= $maxPelanggaran;
+        if ($isBlocked) {
+            // Gunakan Transaction agar perubahan status user & reset nilai di ujian_siswa pasti terjadi bersamaan
+            DB::transaction(function () use ($user, $request) {
+                // 1. Ubah status user menjadi diblokir
+                DB::table('users')
+                    ->where('id', $user->id)
+                    ->update([
+                        'status'     => 'diblokir',
+                        'updated_at' => now(),
+                    ]);
 
-            if ($blocked) {
-                User::where('id', $user->id)->update(['status' => 'diblokir']);
-            }
+                // 2. Reset counter pelanggaran kembali ke 0
+                DB::table('ujian_siswa')
+                    ->where('user_id', $user->id)
+                    ->where('jadwal_id', $request->jadwal_id)
+                    ->update([
+                        'pelanggaran' => 0,
+                        'updated_at'  => now(),
+                    ]);
+            });
+
+            // 3. Bersihkan sesi ujian
+            session()->forget('akses_ujian_' . $request->jadwal_id);
+            session()->forget('akses_ujian_token_' . $request->jadwal_id);
 
             return response()->json([
-                'success' => true,
                 'total'   => $total,
-                'blocked' => $blocked,
-                'max'     => $maxPelanggaran,
+                'blocked' => true
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error catat pelanggaran: ' . $e->getMessage());
-            return response()->json(['error' => 'Terjadi kesalahan pada server.'], 500);
         }
+
+        // Jika belum diblokir, tambahkan nilai pelanggaran
+        DB::table('ujian_siswa')
+            ->where('user_id', $user->id)
+            ->where('jadwal_id', $request->jadwal_id)
+            ->increment('pelanggaran');
+
+        return response()->json([
+            'total'   => $total,
+            'blocked' => false
+        ]);
     }
 
-    /**
-     * 3. Blokir user secara permanen (Sinkron dengan blokirUser di AlpineJS)
-     */
-    public function blokir(Request $request)
+    public function blokirSiswa(Request $request)
     {
         $user = Auth::user();
 
         if ($user) {
-            User::where('id', $user->id)->update(['status' => 'diblokir']);
+            DB::transaction(function () use ($user) {
+                DB::table('users')
+                    ->where('id', $user->id)
+                    ->update([
+                        'status'     => 'diblokir',
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('ujian_siswa')
+                    ->where('user_id', $user->id)
+                    ->update([
+                        'pelanggaran' => 0,
+                        'updated_at'  => now(),
+                    ]);
+            });
+
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Akun telah diblokir karena melampaui batas pelanggaran ujian.'
-        ]);
+        return response()->json(['status' => 'success']);
     }
 
-    /**
-     * 4. Selesaikan ujian (Sinkron dengan submitUjian / form-selesai)
-     */
-    public function selesai(Request $request, Jadwal $jadwal)
+    public function selesai($id)
     {
         $user = Auth::user();
 
-        if ($jadwal) {
-            UjianSiswa::where('user_id', $user->id)
-                ->where('jadwal_id', $jadwal->id)
-                ->update([
-                    'status'        => 'selesai',
-                    'selesai_ujian' => Carbon::now(),
-                ]);
+        $partisipasi = DB::table('ujian_siswa')
+            ->where('user_id', $user->id)
+            ->where('jadwal_id', $id)
+            ->first();
 
-            // Hapus sesi akses token ujian
-            session()->forget('akses_ujian_' . $jadwal->id);
-            session()->forget('akses_ujian_token_' . $jadwal->id);
+        if (!$partisipasi) {
+            return redirect()->route('home')
+                ->with('error', 'Data ujian tidak ditemukan.');
         }
 
-        return redirect()->route('home')->with('success', 'Ujian telah berhasil diselesaikan.');
+        if ($partisipasi->status !== 'selesai') {
+            DB::table('ujian_siswa')
+                ->where('user_id', $user->id)
+                ->where('jadwal_id', $id)
+                ->update([
+                    'status'        => 'selesai',
+                    'selesai_ujian' => now(),
+                    'updated_at'    => now()
+                ]);
+        }
+
+        // Bersihkan sesi ujian
+        session()->forget('akses_ujian_' . $id);
+        session()->forget('akses_ujian_token_' . $id);
+
+        return redirect()->route('home')
+            ->with('success', 'Ujian berhasil diselesaikan.');
     }
 }

@@ -727,7 +727,15 @@
                 this.startTimer();
                 this.refreshMath();
                 this.preloadNextImage();
-                this.setupProtection();
+
+                // Hanya aktifkan proteksi jika anti-contek aktif
+                if (this.settingAntiNyontek) {
+                    this.setupProtection();
+
+                    if (this.maxPelanggaran > 0 && this.pelanggaran >= this.maxPelanggaran) {
+                        this.blokirUser();
+                    }
+                }
 
                 window.addEventListener('online', () => {
                     this.isOnline = true;
@@ -736,11 +744,6 @@
                 window.addEventListener('offline', () => {
                     this.isOnline = false;
                 });
-
-                // Jika saat masuk pelanggaran sudah mencapai batas maksimal
-                if (this.settingAntiNyontek && this.pelanggaran >= this.maxPelanggaran) {
-                    this.blokirUser();
-                }
             },
 
             setupProtection() {
@@ -748,6 +751,7 @@
 
                 const detectViolation = () => {
                     if (
+                        this.settingAntiNyontek &&
                         document.visibilityState === 'hidden' &&
                         !this.isBlocked &&
                         !this.isProcessingViolation
@@ -759,16 +763,14 @@
                 document.addEventListener('visibilitychange', detectViolation);
 
                 window.addEventListener('blur', () => {
-                    setTimeout(detectViolation, 500);
+                    if (this.settingAntiNyontek) {
+                        setTimeout(detectViolation, 500);
+                    }
                 });
             },
 
             async handleViolation() {
-                if (
-                    !this.settingAntiNyontek ||
-                    this.isBlocked ||
-                    this.isProcessingViolation
-                ) return;
+                if (!this.settingAntiNyontek || this.isBlocked || this.isProcessingViolation) return;
 
                 this.isProcessingViolation = true;
 
@@ -806,31 +808,57 @@
                 }
             },
 
-            async blokirUser() {
+            blokirUser() {
+                if (this.isBlocked) return;
                 this.isBlocked = true;
 
                 Swal.fire({
                     title: 'AKUN DIBLOKIR!',
-                    text: 'Pelanggaran batas maksimal. Mengeluarkan sesi...',
+                    text: 'Pelanggaran telah mencapai batas maksimal. Sesi dikeluarkan...',
                     icon: 'error',
                     showConfirmButton: false,
                     allowOutsideClick: false
                 });
 
-                try {
-                    await fetch("{{ route('ujian.blokir') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        }
-                    });
-                } finally {
-                    setTimeout(() => {
-                        document.getElementById('logout-form').submit();
-                    }, 2500);
+                // Langsung submit form logout setelah delay singkat
+                setTimeout(() => {
+                    const logoutForm = document.getElementById('logout-form');
+                    if (logoutForm) {
+                        logoutForm.submit();
+                    } else {
+                        window.location.href = "{{ route('login') }}";
+                    }
+                }, 2500);
+            },
+
+            confirmSelesai() {
+                // Jika anti-contek nonaktif atau settingTombolSelesai bernilai false, tombol langsung bisa ditekan
+                if (
+                    this.settingAntiNyontek &&
+                    this.settingTombolSelesai !== false &&
+                    this.timeLeft > this.settingTombolSelesai
+                ) {
+                    return;
                 }
+
+                Swal.fire({
+                    title: 'Selesai Ujian?',
+                    text: 'Pastikan semua jawaban sudah terisi dengan benar.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Selesai',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#0ea5e9',
+                    cancelButtonColor: '#64748b'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.submitUjian();
+                    }
+                });
+            },
+
+            submitUjian() {
+                document.getElementById('form-selesai').submit();
             },
 
             async saveToDb() {
@@ -1001,32 +1029,6 @@
                     return 'bg-sky-100 border-sky-100 text-sky-700 shadow-sm';
                 }
                 return 'bg-white border-slate-100 text-slate-300';
-            },
-
-            confirmSelesai() {
-                if (
-                    this.settingTombolSelesai !== false &&
-                    this.timeLeft > this.settingTombolSelesai
-                ) return;
-
-                Swal.fire({
-                    title: 'Selesai Ujian?',
-                    text: 'Pastikan semua jawaban sudah terisi dengan benar.',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Selesai',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#0ea5e9',
-                    cancelButtonColor: '#64748b'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        this.submitUjian();
-                    }
-                });
-            },
-
-            submitUjian() {
-                document.getElementById('form-selesai').submit();
             },
 
             logoutConfirm() {
