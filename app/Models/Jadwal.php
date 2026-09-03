@@ -41,4 +41,9 @@ class Jadwal extends Model
         return $this->hasMany(JawabanSiswa::class);
     }
 
+    public function ujianSiswa()
+    {
+        return $this->hasMany(UjianSiswa::class);
+    }
+
 }

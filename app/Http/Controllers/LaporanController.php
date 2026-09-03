@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Kelas;
 use App\Models\Mapel;
+use App\Models\Jadwal;
 use App\Exports\LaporanUjianExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Gate;
@@ -41,8 +42,8 @@ class LaporanController extends Controller
     public function exportExcel(Request $request)
     {
         $request->validate([
-            'mapel_id' => 'required',
-            'kelas_id' => 'required',
+            'mapel_id' => 'required|exists:mapel,id',
+            'kelas_id' => 'required|exists:kelas,id',
         ]);
 
         $mapel = Mapel::findOrFail($request->mapel_id);
@@ -57,9 +58,7 @@ class LaporanController extends Controller
         $namaMapel = str_replace([' ', '/', '\\'], '_', $mapel->nama_mapel);
         $namaKelas = str_replace([' ', '/', '\\'], '_', $kelas->nama_kelas);
 
-        $tanggalMapel = date('Y-m-d', strtotime($mapel->tanggal ?? $mapel->created_at));
-
-        $filename = "Hasil_{$namaMapel}_{$namaKelas}_{$tanggalMapel}.xlsx";
+        $filename = "Hasil_{$namaMapel}_{$namaKelas}_" . date('Y-m-d') . ".xlsx";
 
         $judul = "LAPORAN HASIL UJIAN {$mapel->nama_mapel} {$kelas->nama_kelas}";
 
@@ -130,17 +129,18 @@ class LaporanController extends Controller
 
     private function getStudentQuery($tanggal)
     {
-        return DB::table('ujian_partisipasi')
-            ->join('users', 'ujian_partisipasi.user_id', '=', 'users.id')
+        return DB::table('ujian_siswa')
+            ->join('users', 'ujian_siswa.user_id', '=', 'users.id')
             ->join('siswa', 'users.id', '=', 'siswa.user_id')
             ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
-            ->whereDate('ujian_partisipasi.created_at', $tanggal)
+            ->join('jadwal', 'ujian_siswa.jadwal_id', '=', 'jadwal.id')
+            ->whereDate('ujian_siswa.created_at', $tanggal)
             ->select(
                 'users.id as user_id',
                 'users.nama as nama_siswa',
                 'siswa.nis',
                 'kelas.nama_kelas',
-                DB::raw('COUNT(DISTINCT ujian_partisipasi.mapel_id) as jumlah_mapel_db')
+                DB::raw('COUNT(DISTINCT jadwal.mapel_id) as jumlah_mapel_db')
             )
             ->groupBy(
                 'users.id',
@@ -152,15 +152,23 @@ class LaporanController extends Controller
 
     private function formatStudentResult($item, $tanggal)
     {
-        $partisipasi = DB::table('ujian_partisipasi')
-            ->join('mapel', 'ujian_partisipasi.mapel_id', '=', 'mapel.id')
-            ->where('ujian_partisipasi.user_id', $item->user_id)
-            ->whereDate('ujian_partisipasi.created_at', $tanggal)
+        // Ambil data ujian siswa berdasarkan jadwal
+        $ujianSiswa = DB::table('ujian_siswa')
+            ->join('jadwal', 'ujian_siswa.jadwal_id', '=', 'jadwal.id')
+            ->join('mapel', 'jadwal.mapel_id', '=', 'mapel.id')
+            ->where('ujian_siswa.user_id', $item->user_id)
+            ->whereDate('ujian_siswa.created_at', $tanggal)
             ->select(
                 'mapel.id as mapel_id',
                 'mapel.nama_mapel',
-                'ujian_partisipasi.status as status_db',
-                'ujian_partisipasi.updated_at as aktivitas_terakhir'
+                'ujian_siswa.status as status_db',
+                'ujian_siswa.updated_at as aktivitas_terakhir',
+                'ujian_siswa.selesai_ujian',
+                'ujian_siswa.mulai_ujian',
+                'jadwal.tanggal_ujian',
+                'jadwal.jam_mulai',
+                'jadwal.jam_selesai',
+                'jadwal.durasi'
             )
             ->orderBy('mapel.nama_mapel', 'asc')
             ->get();
@@ -168,7 +176,7 @@ class LaporanController extends Controller
         $mapelList = [];
         $statusGlobal = 'SELESAI';
 
-        foreach ($partisipasi as $p) {
+        foreach ($ujianSiswa as $p) {
             $detail = $this->formatMapelDetail($item->user_id, $p);
 
             if ($detail['status_label'] !== 'SELESAI') {
@@ -188,31 +196,45 @@ class LaporanController extends Controller
 
     private function formatMapelDetail($userId, $p)
     {
-        $totalSoal = DB::table('soal')
+        // Ambil total soal dari bank_pertanyaan berdasarkan mapel
+        $totalSoal = DB::table('bank_pertanyaan')
             ->where('mapel_id', $p->mapel_id)
             ->count();
 
-        $jawabanBenar = DB::table('ujian_progres')
-            ->join('jawaban', 'ujian_progres.jawaban_id', '=', 'jawaban.id')
-            ->where('ujian_progres.user_id', $userId)
-            ->where('ujian_progres.mapel_id', $p->mapel_id)
-            ->where('jawaban.jawaban_benar', true)
+        // Ambil jawaban benar dari progres_siswa
+        // Gunakan kolom jawaban_benar dari bank_jawaban
+        $jawabanBenar = DB::table('progres_siswa')
+            ->join('bank_jawaban', 'progres_siswa.bank_jawaban_id', '=', 'bank_jawaban.id')
+            ->join('bank_pertanyaan', 'progres_siswa.bank_pertanyaan_id', '=', 'bank_pertanyaan.id')
+            ->where('progres_siswa.user_id', $userId)
+            ->where('bank_pertanyaan.mapel_id', $p->mapel_id)
+            ->where('bank_jawaban.jawaban_benar', true)
             ->count();
 
-        $totalDijawab = DB::table('ujian_progres')
-            ->where('user_id', $userId)
-            ->where('mapel_id', $p->mapel_id)
+        // Total jawaban yang sudah diisi
+        $totalDijawab = DB::table('progres_siswa')
+            ->join('bank_pertanyaan', 'progres_siswa.bank_pertanyaan_id', '=', 'bank_pertanyaan.id')
+            ->where('progres_siswa.user_id', $userId)
+            ->where('bank_pertanyaan.mapel_id', $p->mapel_id)
             ->count();
 
         $nilai = $totalSoal > 0
             ? round(($jawabanBenar / $totalSoal) * 100, 2)
             : 0;
 
+        // Logika status
         if ($p->status_db === 'selesai') {
             $statusLabel = 'SELESAI';
             $statusColor = 'success';
         } else {
-            $isTimeout = strtotime($p->aktivitas_terakhir) < strtotime('-2 hours');
+            // Cek apakah sudah melewati waktu ujian
+            $isTimeout = false;
+
+            // Cek dari jadwal
+            if ($p->tanggal_ujian && $p->jam_selesai) {
+                $waktuSelesai = strtotime($p->tanggal_ujian . ' ' . $p->jam_selesai);
+                $isTimeout = time() > $waktuSelesai;
+            }
 
             if ($isTimeout) {
                 $statusLabel = ($totalDijawab < ($totalSoal * 0.5))
@@ -241,13 +263,15 @@ class LaporanController extends Controller
 
     private function getExportQuery(Request $request)
     {
-        return DB::table('ujian_partisipasi')
-            ->join('users', 'ujian_partisipasi.user_id', '=', 'users.id')
+        return DB::table('ujian_siswa')
+            ->join('users', 'ujian_siswa.user_id', '=', 'users.id')
             ->join('siswa', 'users.id', '=', 'siswa.user_id')
             ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
-            ->join('mapel', 'ujian_partisipasi.mapel_id', '=', 'mapel.id')
-            ->where('ujian_partisipasi.mapel_id', $request->mapel_id)
+            ->join('jadwal', 'ujian_siswa.jadwal_id', '=', 'jadwal.id')
+            ->join('mapel', 'jadwal.mapel_id', '=', 'mapel.id')
+            ->where('jadwal.mapel_id', $request->mapel_id)
             ->where('kelas.id', $request->kelas_id)
+            ->whereDate('ujian_siswa.created_at', date('Y-m-d'))
             ->select(
                 'users.nama as nama_siswa',
                 'siswa.nis',
@@ -255,9 +279,15 @@ class LaporanController extends Controller
                 'kelas.nama_kelas',
                 'mapel.id as mapel_id',
                 'mapel.nama_mapel',
-                'ujian_partisipasi.user_id',
-                'ujian_partisipasi.status as status_db',
-                'ujian_partisipasi.updated_at as aktivitas_terakhir'
+                'ujian_siswa.user_id',
+                'ujian_siswa.status as status_db',
+                'ujian_siswa.updated_at as aktivitas_terakhir',
+                'ujian_siswa.selesai_ujian',
+                'ujian_siswa.mulai_ujian',
+                'jadwal.tanggal_ujian',
+                'jadwal.jam_mulai',
+                'jadwal.jam_selesai',
+                'jadwal.durasi'
             )
             ->orderBy('users.nama', 'asc');
     }
@@ -269,6 +299,8 @@ class LaporanController extends Controller
             'nama_mapel' => $item->nama_mapel,
             'status_db' => $item->status_db,
             'aktivitas_terakhir' => $item->aktivitas_terakhir,
+            'tanggal_ujian' => $item->tanggal_ujian ?? null,
+            'jam_selesai' => $item->jam_selesai ?? null,
         ]);
 
         $item->benar = $detail['benar'];

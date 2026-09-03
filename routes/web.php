@@ -82,6 +82,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/ujian-handler/update-waktu', [UjianHandlerController::class, 'updateWaktu'])
         ->name('ujian-handler.update-waktu');
 });
+Route::post('/ujian-handler/reset', [UjianHandlerController::class, 'resetUjian'])->name('ujian-handler.reset');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/ujian/{jadwal}/mulai', [UjianController::class, 'showExam'])->name('ujian.mulai');
