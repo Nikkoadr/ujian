@@ -36,14 +36,23 @@ class JadwalUjianController extends Controller
     {
         $periodeAktif = PeriodeUjian::where('is_active', true)->first();
 
-        $mapels = Mapel::with(['jadwal', 'tingkat', 'kompetensiKeahlian'])
+        $mapels = Mapel::with(['tingkat', 'kompetensiKeahlian'])
             ->join('jadwal', 'mapel.id', '=', 'jadwal.mapel_id')
             ->when($periodeAktif, function ($query) use ($periodeAktif) {
                 return $query->where('jadwal.periode_ujian_id', $periodeAktif->id);
             })
             ->orderBy('jadwal.tanggal_ujian', 'asc')
             ->orderBy('jadwal.jam_mulai', 'asc')
-            ->select('mapel.*', 'jadwal.tanggal_ujian', 'jadwal.jam_mulai', 'jadwal.id as jadwal_id') // tambahkan kolom jadwal
+            ->select(
+                'mapel.*',
+                'jadwal.id as jadwal_id',
+                'jadwal.tanggal_ujian',
+                'jadwal.jam_mulai',
+                'jadwal.jam_selesai',
+                'jadwal.durasi',
+                'jadwal.token',
+                'jadwal.status as status_jadwal'
+            )
             ->addSelect([
                 'jumlah_soal_terpilih' => \App\Models\Soal::selectRaw('count(*)')
                     ->join('soal_bank_pertanyaan', 'soal.id', '=', 'soal_bank_pertanyaan.soal_id')

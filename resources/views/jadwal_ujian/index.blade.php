@@ -71,7 +71,7 @@
                             <td>
                                 <span class="badge badge-light p-2 border">
                                     <i class="far fa-hourglass mr-1"></i> 
-                                    {{ $jadwal ? ($jadwal->durasi ?? \Carbon\Carbon::parse($jadwal->jam_mulai)->diff(\Carbon\Carbon::parse($jadwal->jam_selesai))->format('%H:%I')) : '-' }}
+                                    {{ $mapel->durasi ? substr($mapel->durasi, 0, 5) : '-' }}
                                 </span>
                             </td>
                             <td class="text-center">
