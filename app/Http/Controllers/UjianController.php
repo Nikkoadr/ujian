@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class UjianController extends Controller
 {
@@ -19,15 +20,50 @@ class UjianController extends Controller
      */
     public function showExam(Jadwal $jadwal)
     {
-        // Cek akses token
-        if (session('akses_ujian_' . $jadwal->id) !== Auth::id()) {
+        $user = Auth::user();
+
+        // 1. Validasi Status Blokir User (Dari logika lama)
+        if ($user->status === 'diblokir') {
+            return redirect()->route('home')->with('error', 'Akun Anda ditangguhkan.');
+        }
+
+        // 2. Cek Akses Token Berdasarkan Jadwal
+        if (session('akses_ujian_' . $jadwal->id) !== $user->id) {
             return redirect()->route('home')->with('error', 'Silakan masukkan token ujian terlebih dahulu.');
         }
 
-        $user = Auth::user();
         $mapel = $jadwal->mapel;
+        $sekarang = Carbon::now();
 
-        // Ambil bank_pertanyaan yang terhubung dengan jadwal
+        // 3. Ambil / Buat Record Partisipasi Siswa (ujian_siswa) & Waktu Mulai
+        $ujianSiswa = UjianSiswa::firstOrCreate(
+            [
+                'user_id'   => $user->id,
+                'jadwal_id' => $jadwal->id,
+            ],
+            [
+                'status'      => 'sedang mengerjakan',
+                'pelanggaran' => 0,
+                'mulai_ujian' => $sekarang,
+            ]
+        );
+
+        // 4. Kalkulasi Waktu (Cara Lama: diffInSeconds dari mulai_ujian + durasi)
+        $waktuMulai = Carbon::parse($ujianSiswa->mulai_ujian);
+        $durasiParts = explode(':', (string) $jadwal->durasi);
+        $totalDetikUjian = ((int) ($durasiParts[0] ?? 0) * 3600) +
+            ((int) ($durasiParts[1] ?? 0) * 60) +
+            ((int) ($durasiParts[2] ?? 0));
+
+        $waktuSelesai = $waktuMulai->copy()->addSeconds($totalDetikUjian);
+        $timeLeft = floor($sekarang->diffInSeconds($waktuSelesai, false));
+
+        // Jika waktu habis, tolak akses ujian
+        if ($timeLeft <= 0) {
+            return redirect()->route('home')->with('error', 'Waktu ujian telah habis.');
+        }
+
+        // 5. Ambil ID Soal dari Tabel Pivot (soal_bank_pertanyaan)
         $bankPertanyaanIds = DB::table('soal_bank_pertanyaan')
             ->join('soal', 'soal.id', '=', 'soal_bank_pertanyaan.soal_id')
             ->where('soal.jadwal_id', $jadwal->id)
@@ -42,13 +78,13 @@ class UjianController extends Controller
             ->orderBy('id')
             ->get();
 
-        // Progres siswa
+        // 6. Progres Jawaban Siswa
         $progresMap = ProgresSiswa::where('user_id', $user->id)
             ->where('jadwal_id', $jadwal->id)
             ->get()
             ->keyBy('bank_pertanyaan_id');
 
-        // Format soal
+        // 7. Format Soal, Gambar R2, dan Opsi Jawaban Bergambar
         $listSoal = $bankPertanyaan->map(function ($bp, $index) use ($progresMap) {
             $progres = $progresMap->get($bp->id);
             $jawabanTerpilih = $progres ? $progres->bank_jawaban_id : null;
@@ -56,75 +92,27 @@ class UjianController extends Controller
 
             $pilihan = $bp->jawaban->sortBy('urutan')->map(function ($jawaban, $key) {
                 return [
-                    'db_id' => $jawaban->id,
-                    'label' => chr(65 + $key),
-                    'teks'  => $jawaban->teks_jawaban,
+                    'db_id'  => $jawaban->id,
+                    'label'  => chr(65 + $key),
+                    'teks'   => $jawaban->teks_jawaban,
+                    'gambar' => $jawaban->gambar_jawaban ? Storage::disk('r2')->url($jawaban->gambar_jawaban) : null,
                 ];
-            });
+            })->values();
 
             return [
                 'id'               => $bp->id,
                 'nomor'            => $index + 1,
                 'pertanyaan'       => $bp->pertanyaan,
-                'gambar_soal'      => $bp->gambar_soal,
+                'gambar_soal'      => $bp->gambar_soal ? Storage::disk('r2')->url($bp->gambar_soal) : null,
                 'pilihan'          => $pilihan,
                 'jawaban_terpilih' => $jawabanTerpilih,
                 'is_ragu'          => $isRagu,
             ];
         });
 
-        // ------------------------------------------------------------------
-        // 1. AMBIL / BUAT DATA UJIAN SISWA
-        // ------------------------------------------------------------------
-        $ujianSiswa = UjianSiswa::firstOrCreate(
-            [
-                'user_id'   => $user->id,
-                'jadwal_id' => $jadwal->id,
-            ],
-            [
-                'status'      => 'sedang mengerjakan',
-                'pelanggaran' => 0,
-                'mulai_ujian' => now(),
-            ]
-        );
-
-        $pelanggaran = $ujianSiswa->pelanggaran;
-
-        // ------------------------------------------------------------------
-        // 2. PERHITUNGAN SISA WAKTU (mulai_ujian + durasi)
-        // ------------------------------------------------------------------
-        // Parse waktu mulai ujian siswa
-        $waktuMulaiSiswa = \Carbon\Carbon::parse($ujianSiswa->mulai_ujian);
-
-        // Ambil jam, menit, detik dari durasi jadwal (misal '01:30:00')
-        $durasiParts = explode(':', $jadwal->durasi);
-        $jamDurasi   = (int) ($durasiParts[0] ?? 0);
-        $menitDurasi = (int) ($durasiParts[1] ?? 0);
-        $detikDurasi = (int) ($durasiParts[2] ?? 0);
-
-        // Waktu selesai siswa
-        $waktuSelesai = $waktuMulaiSiswa->copy()
-            ->addHours($jamDurasi)
-            ->addMinutes($menitDurasi)
-            ->addSeconds($detikDurasi);
-
-        $now = \Carbon\Carbon::now();
-
-        // Hitung sisa detik (jika sekarang melewati waktu selesai, set ke 0)
-        if ($now->greaterThanOrEqualTo($waktuSelesai)) {
-            $timeLeft = 0;
-        } else {
-            $timeLeft = $now->diffInSeconds($waktuSelesai, false);
-        }
-
-        // ------------------------------------------------------------------
-        // PENGATURAN
-        // ------------------------------------------------------------------
-        $settingTombolSelesai = $jadwal->setting_tombol_selesai ?? 0; // dalam menit
+        // 8. Pengaturan Ujian
+        $settingTombolSelesai = $jadwal->setting_tombol_selesai ?? 0;
         $settingTombolSelesaiDetik = $settingTombolSelesai * 60;
-
-        $settingAntiNyontek = $jadwal->setting_anti_nyontek ?? false;
-        $settingMaxPelanggaran = $jadwal->setting_max_pelanggaran ?? 3;
 
         return view('ujian.index', [
             'jadwal'                => $jadwal,
@@ -132,9 +120,9 @@ class UjianController extends Controller
             'listSoal'              => $listSoal,
             'timeLeft'              => (int) $timeLeft,
             'settingTombolSelesai'  => $settingTombolSelesaiDetik,
-            'settingAntiNyontek'    => $settingAntiNyontek,
-            'settingMaxPelanggaran' => $settingMaxPelanggaran,
-            'pelanggaran'           => $pelanggaran,
+            'settingAntiNyontek'    => $jadwal->setting_anti_nyontek ?? false,
+            'settingMaxPelanggaran' => $jadwal->setting_max_pelanggaran ?? 3,
+            'pelanggaran'           => $ujianSiswa->pelanggaran,
         ]);
     }
 
