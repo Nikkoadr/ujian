@@ -157,7 +157,7 @@
                 </button>
             </div>
             
-            <form action="{{ route('jadwal-ujian.import') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('jadwal-ujian.import') }}" method="POST" enctype="multipart/form-data" id="formImport">
                 @csrf
                 <div class="modal-body px-4">
                     <a href="{{ asset('assets/format_excel/mapel.xlsx') }}" class="btn btn-outline-primary btn-sm">
@@ -168,7 +168,7 @@
                         <label class="small font-weight-bold text-dark">Pilih File Excel</label>
                         <div class="custom-file">
                             <input type="file" name="file" class="custom-file-input" id="importFile" required>
-                            <label class="custom-file-label" for="importFile">Pilih file...</label>
+                            <label class="custom-file-label" for="importFile" id="fileLabel">Pilih file...</label>
                         </div>
                         <small class="text-muted mt-2 d-block">Gunakan format .xlsx atau .xls</small>
                     </div>
@@ -177,7 +177,7 @@
                 <div class="modal-footer border-0 p-4">
                     <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal" style="border-radius: 10px;">Batal</button>
                     <button type="submit" class="btn btn-success font-weight-bold px-4 shadow-sm" style="border-radius: 10px;">
-                        Upload & Proses
+                        <i class="fas fa-upload mr-2"></i> Upload & Proses
                     </button>
                 </div>
             </form>
@@ -300,9 +300,27 @@
             @endif
         @endif
 
-        $('.custom-file-input').on('change', function() {
-            let fileName = $(this).val().split('\\').pop();
-            $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        $('#importFile').on('change', function() {
+            var fileName = $(this).val().split('\\').pop();
+            if (fileName) {
+                $('#fileLabel').text(fileName).addClass('selected');
+            } else {
+                $('#fileLabel').text('Pilih file...').removeClass('selected');
+            }
+        });
+
+        // Reset saat modal ditutup
+        $('#modalImport').on('hidden.bs.modal', function() {
+            $('#importFile').val('');
+            $('#fileLabel').text('Pilih file...').removeClass('selected');
+        });
+
+        // Reset saat tombol batal diklik
+        $('#modalImport .btn-light').on('click', function() {
+            setTimeout(function() {
+                $('#importFile').val('');
+                $('#fileLabel').text('Pilih file...').removeClass('selected');
+            }, 100);
         });
     });
 

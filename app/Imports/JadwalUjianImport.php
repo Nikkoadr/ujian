@@ -7,11 +7,16 @@ use App\Models\Mapel;
 use App\Models\PeriodeUjian;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithValidation;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-class JadwalUjianImport implements ToModel, WithHeadingRow
+class JadwalUjianImport implements ToModel, WithHeadingRow, WithValidation
 {
+    /**
+     * @param array $row
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
     public function model(array $row)
     {
         // Cari mapel dari kode
@@ -38,9 +43,14 @@ class JadwalUjianImport implements ToModel, WithHeadingRow
 
         // Konversi tanggal
         $tanggal = $this->parseDate($row['tanggal_ujian']);
-        $jamMulai = $this->parseTime($row['jam_mulai']);
-        $jamSelesai = $this->parseTime($row['jam_selesai']);
-        $durasi = $this->parseDuration($row['durasi']);
+
+        // Konversi waktu - FIX untuk format Excel desimal
+        $jamMulai = $this->parseTimeExcel($row['jam_mulai']);
+        $jamSelesai = $this->parseTimeExcel($row['jam_selesai']);
+
+        // Konversi durasi
+        $durasi = $this->parseDurationExcel($row['durasi']);
+
         $token = $this->generateToken();
 
         return new Jadwal([
@@ -53,6 +63,36 @@ class JadwalUjianImport implements ToModel, WithHeadingRow
             'token' => $token,
             'status' => 'aktif',
         ]);
+    }
+
+    /**
+     * Validasi rules untuk import
+     */
+    public function rules(): array
+    {
+        return [
+            'kode_mapel' => 'required|string',
+            'periode_ujian' => 'required|string',
+            'tanggal_ujian' => 'required',
+            'jam_mulai' => 'required',
+            'jam_selesai' => 'required',
+            'durasi' => 'required',
+        ];
+    }
+
+    /**
+     * Custom validation messages
+     */
+    public function customValidationMessages()
+    {
+        return [
+            'kode_mapel.required' => 'Kode mapel wajib diisi',
+            'periode_ujian.required' => 'Periode ujian wajib diisi',
+            'tanggal_ujian.required' => 'Tanggal ujian wajib diisi',
+            'jam_mulai.required' => 'Jam mulai wajib diisi',
+            'jam_selesai.required' => 'Jam selesai wajib diisi',
+            'durasi.required' => 'Durasi wajib diisi',
+        ];
     }
 
     /**
@@ -101,61 +141,155 @@ class JadwalUjianImport implements ToModel, WithHeadingRow
         return null;
     }
 
+    /**
+     * Parse date dari berbagai format termasuk Excel serial number
+     */
     private function parseDate($value)
     {
         if (!$value) return null;
 
         try {
+            // Cek apakah nilai adalah angka (Excel serial number)
             if (is_numeric($value)) {
                 return Date::excelToDateTimeObject($value)->format('Y-m-d');
             }
 
+            // Format d/m/Y (Indonesia)
             if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $value)) {
                 return Carbon::createFromFormat('d/m/Y', $value)->format('Y-m-d');
             }
 
+            // Format Y-m-d
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                return $value;
+            }
+
+            // Format m/d/Y (US)
+            if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $value)) {
+                return Carbon::createFromFormat('m/d/Y', $value)->format('Y-m-d');
+            }
+
+            // Format d-m-Y
+            if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $value)) {
+                return Carbon::createFromFormat('d-m-Y', $value)->format('Y-m-d');
+            }
+
+            // Fallback: coba parse dengan Carbon
             return Carbon::parse($value)->format('Y-m-d');
         } catch (\Exception $e) {
             throw new \Exception("Format tanggal tidak valid: {$value}");
         }
     }
 
-    private function parseTime($value)
+    /**
+     * Parse waktu dari Excel (khusus menangani nilai desimal)
+     * Excel menyimpan waktu sebagai desimal: 0.0520833333333333 = 01:15:00
+     */
+    private function parseTimeExcel($value)
     {
         if (!$value) return null;
 
         try {
+            // ===== FIX UNTUK EXCEL TIME DESIMAL =====
+            // Jika nilai adalah numerik (desimal dari Excel)
             if (is_numeric($value)) {
-                return Date::excelToDateTimeObject($value)->format('H:i:s');
+                // Konversi desimal Excel ke jam:menit:detik
+                $totalSeconds = $value * 86400; // 1 hari = 86400 detik
+                $hours = floor($totalSeconds / 3600);
+                $minutes = floor(($totalSeconds % 3600) / 60);
+                $seconds = round($totalSeconds % 60);
+
+                // Format HH:MM:SS
+                return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
             }
 
-            if (preg_match('/^\d{2}:\d{2}$/', $value)) {
+            // Jika nilai sudah berupa string waktu
+            $value = trim($value);
+
+            // Format HH:MM:SS
+            if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $value)) {
+                return $value;
+            }
+
+            // Format HH:MM (tanpa detik)
+            if (preg_match('/^\d{1,2}:\d{2}$/', $value)) {
                 return $value . ':00';
             }
 
+            // Format H:MM (tanpa leading zero)
+            if (preg_match('/^\d{1}:\d{2}$/', $value)) {
+                return '0' . $value . ':00';
+            }
+
+            // Format dengan AM/PM (e.g., 01:15 PM)
+            if (preg_match('/^\d{1,2}:\d{2}\s?(AM|PM)$/i', $value)) {
+                return Carbon::parse($value)->format('H:i:s');
+            }
+
+            // Fallback: coba parse dengan Carbon
             return Carbon::parse($value)->format('H:i:s');
         } catch (\Exception $e) {
             throw new \Exception("Format waktu tidak valid: {$value}");
         }
     }
 
-    private function parseDuration($value)
+    /**
+     * Parse durasi dari Excel (khusus menangani nilai desimal)
+     */
+    private function parseDurationExcel($value)
     {
         if (!$value) return '00:00:00';
 
-        if (preg_match('/^\d{2}:\d{2}$/', $value)) {
-            return $value . ':00';
-        }
+        try {
+            // ===== FIX UNTUK EXCEL TIME DESIMAL =====
+            // Jika nilai adalah numerik (desimal dari Excel)
+            if (is_numeric($value)) {
+                // Konversi desimal Excel ke jam:menit:detik
+                $totalSeconds = $value * 86400; // 1 hari = 86400 detik
+                $hours = floor($totalSeconds / 3600);
+                $minutes = floor(($totalSeconds % 3600) / 60);
+                $seconds = round($totalSeconds % 60);
 
-        if (is_numeric($value)) {
-            $hours = floor($value / 60);
-            $minutes = $value % 60;
-            return sprintf('%02d:%02d:00', $hours, $minutes);
-        }
+                // Format HH:MM:SS
+                return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+            }
 
-        return $value;
+            $value = trim($value);
+
+            // Format HH:MM:SS
+            if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $value)) {
+                return $value;
+            }
+
+            // Format HH:MM (tanpa detik)
+            if (preg_match('/^\d{1,2}:\d{2}$/', $value)) {
+                return $value . ':00';
+            }
+
+            // Format menit (misal: 90 = 90 menit)
+            if (is_numeric($value)) {
+                $hours = floor($value / 60);
+                $minutes = $value % 60;
+                return sprintf('%02d:%02d:00', $hours, $minutes);
+            }
+
+            // Format dengan satuan (misal: 1 jam 30 menit)
+            if (preg_match('/(\d+)\s*jam\s*(\d*)\s*menit?/i', $value, $matches)) {
+                $hours = (int) $matches[1];
+                $minutes = isset($matches[2]) ? (int) $matches[2] : 0;
+                return sprintf('%02d:%02d:00', $hours, $minutes);
+            }
+
+            // Fallback
+            return $value;
+        } catch (\Exception $e) {
+            throw new \Exception("Format durasi tidak valid: {$value}");
+        }
     }
 
+    /**
+     * Generate token unik
+     */
     private function generateToken()
     {
         do {
