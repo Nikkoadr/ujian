@@ -299,6 +299,11 @@
                 $('#modalTambahJadwal').modal('show');
             @endif
         @endif
+
+        $('.custom-file-input').on('change', function() {
+            let fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        });
     });
 
     function confirmDelete(id, name) {
