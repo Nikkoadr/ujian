@@ -24,7 +24,11 @@ Route::get('/', function () {
     $siswaCount = \App\Models\Siswa::count();
     $mapelCount = \App\Models\Mapel::count();
     $kelasCount = \App\Models\Kelas::count();
-    return view('welcome', compact('siswaCount', 'mapelCount', 'kelasCount'));
+
+    // Ambil periode yang aktif (gunakan is_active, bukan status)
+    $periodeAktif = \App\Models\PeriodeUjian::where('is_active', true)->first();
+
+    return view('welcome', compact('siswaCount', 'mapelCount', 'kelasCount', 'periodeAktif'));
 });
 
 Route::get('/info', function () {

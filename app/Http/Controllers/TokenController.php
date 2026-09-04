@@ -20,40 +20,34 @@ class TokenController extends Controller
 
     public function index()
     {
-        $now = Carbon::now();
-
-        // Cari jadwal ujian yang aktif berdasarkan tanggal dan jam sekarang
-        $jadwal = Jadwal::with('mapel')
-            ->where('status', 'aktif')
-            ->whereDate('tanggal_ujian', $now->toDateString())
-            ->whereTime('jam_mulai', '<=', $now->toTimeString())
-            ->whereTime('jam_selesai', '>=', $now->toTimeString())
-            ->first();
-
-        $token = $jadwal ? $jadwal->token : '------';
+        $mapel = Jadwal::first();
+        $token = $mapel ? $mapel->token : '------';
 
         $secondsRemaining = 0;
         $isStale = false;
 
-        if ($jadwal) {
-            $lastUpdate = $jadwal->updated_at->timestamp;
+        if ($mapel) {
+            $lastUpdate = $mapel->updated_at->timestamp;
             $nextUpdate = $lastUpdate + 300; // Interval 5 menit
-            $currentTime = time();
+            $now = time();
 
-            $secondsRemaining = max(0, $nextUpdate - $currentTime);
+            // Gunakan max(0, ...) agar tidak mengirim angka negatif ke JS
+            $secondsRemaining = max(0, $nextUpdate - $now);
 
+            // Jika sisa waktu sudah 0, berarti sistem menunggu Cron Job bekerja
             if ($secondsRemaining <= 0) {
                 $isStale = true;
             }
         }
 
+        // Pemisahan View berdasarkan Role
         if (Gate::allows('admin')) {
             $jadwals = Jadwal::with('mapel')->get();
-            return view('token', compact('jadwals', 'token', 'secondsRemaining', 'isStale', 'jadwal'));
+            return view('token', compact('jadwals', 'token', 'secondsRemaining', 'isStale'));
         }
 
         if (Gate::allows('pengawas')) {
-            return view('token_mobile', compact('token', 'secondsRemaining', 'isStale', 'jadwal'));
+            return view('token_mobile', compact('token', 'secondsRemaining', 'isStale'));
         }
 
         return abort(403, 'Akses Ditolak');
