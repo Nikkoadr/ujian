@@ -20,4 +20,13 @@ class Soal extends Model
             ->withTimestamps();
     }
 
+    public function PeriodeUjian()
+    {
+        return $this->belongsTo(PeriodeUjian::class, 'periode_ujian_id');
+    }
+
+    public function mapel()
+    {
+        return $this->belongsTo(Mapel::class, 'mapel_id');
+    }
 }

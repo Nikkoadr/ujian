@@ -10,6 +10,7 @@ use App\Models\Kompetensi_keahlian;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use App\Imports\JadwalUjianImport;
 
 class JadwalUjianController extends Controller
 {
@@ -94,7 +95,6 @@ class JadwalUjianController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-
         // Generate token unik 6 karakter huruf kapital
         do {
             $token = strtoupper(Str::random(6));
@@ -112,6 +112,18 @@ class JadwalUjianController extends Controller
 
         return redirect()->route('jadwal-ujian.index')
             ->with('success', 'Jadwal ujian berhasil ditambahkan.');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv',
+        ]);
+
+        $file = $request->file('file');
+        \Maatwebsite\Excel\Facades\Excel::import(new JadwalUjianImport, $file);
+
+        return redirect()->route('jadwal-ujian.index')->with('success', 'Data Jadwal Ujian berhasil diimpor.');
     }
 
     /**

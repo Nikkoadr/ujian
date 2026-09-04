@@ -21,7 +21,7 @@
                 <div class="row">
                     <div class="col-md-4 form-group">
                         <label class="font-weight-bold">Periode Ujian</label>
-                        <input type="text" class="form-control" value="{{ $soal->periodeUjian->nama_periode ?? '-' }}" disabled>
+                        <input type="text" class="form-control" value="{{ $soal->PeriodeUjian->nama_periode ?? '-' }}" disabled>
                     </div>
                     <div class="col-md-4 form-group">
                         <label class="font-weight-bold">Jadwal Ujian</label>

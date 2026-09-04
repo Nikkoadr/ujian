@@ -36,6 +36,7 @@ Auth::routes(['register' => false, 'reset' => false]);
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
 Route::resource('jadwal-ujian', JadwalUjianController::class);
+Route::post('/jadwal-ujian/import', [JadwalUjianController::class, 'import'])->name('jadwal-ujian.import');
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
 

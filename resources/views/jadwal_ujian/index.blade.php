@@ -8,6 +8,9 @@
         <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Jadwal Ujian</h1>
         @if(Gate::allows('admin'))
         <div class="d-flex align-items-center">
+            <button class="btn btn-sm btn-success shadow-sm mr-2" data-toggle="modal" data-target="#modalImport" style="border-radius: 10px; padding: 0.4rem 1rem;">
+                <i class="fas fa-file-excel fa-sm text-white-50 mr-2"></i> Import Excel
+            </button>
             <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahJadwal" style="border-radius: 10px; padding: 0.4rem 1rem;">
                 <i class="fas fa-calendar-plus fa-sm mr-2"></i> Buat Jadwal Ujian
             </button>
@@ -140,7 +143,48 @@
         </div>
     </div>
 </div>
+{{-- MODAL IMPORT EXCEL --}}
+@if(Gate::allows('admin'))
+<div class="modal fade" id="modalImport" tabindex="-1" role="dialog" aria-labelledby="modalImportLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title font-weight-bold text-gray-800" id="modalImportLabel">
+                    <i class="fas fa-file-excel text-success mr-2"></i>Import Jadwal Ujian
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            
+            <form action="{{ route('jadwal-ujian.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body px-4">
+                    <a href="{{ asset('assets/format_excel/mapel.xlsx') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-download mr-1"></i> Download Format Excel
+                    </a>
 
+                    <div class="form-group mt-4">
+                        <label class="small font-weight-bold text-dark">Pilih File Excel</label>
+                        <div class="custom-file">
+                            <input type="file" name="file" class="custom-file-input" id="importFile" required>
+                            <label class="custom-file-label" for="importFile">Pilih file...</label>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Gunakan format .xlsx atau .xls</small>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-0 p-4">
+                    <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal" style="border-radius: 10px;">Batal</button>
+                    <button type="submit" class="btn btn-success font-weight-bold px-4 shadow-sm" style="border-radius: 10px;">
+                        Upload & Proses
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 {{-- MODAL TAMBAH JADWAL UJIAN --}}
 @if(Gate::allows('admin'))
 <div class="modal fade" id="modalTambahJadwal" tabindex="-1" role="dialog" aria-hidden="true">
