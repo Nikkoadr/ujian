@@ -10,6 +10,7 @@ use App\Models\Kompetensi_keahlian;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Database\QueryException;
 use App\Imports\JadwalUjianImport;
 
 class JadwalUjianController extends Controller
@@ -192,14 +193,43 @@ class JadwalUjianController extends Controller
             ->with('success', 'Jadwal ujian berhasil dihapus.');
     }
 
-    /**
-     * Tampilkan detail jadwal ujian (opsional)
-     */
-    public function show($id)
+    public function destroyMultiple(Request $request)
     {
-        $jadwal = Jadwal::with(['mapel', 'periodeUjian', 'tingkat', 'kompetensiKeahlian'])
-            ->findOrFail($id);
+        $ids = $request->ids;
 
-        return view('jadwal_ujian.show', compact('jadwal'));
+        if (!$ids || count($ids) === 0) {
+            return redirect()->route('jadwal-ujian.index')
+                ->with('error', 'Tidak ada data yang dipilih untuk dihapus.');
+        }
+
+        try {
+            // Cek apakah ada jadwal yang memiliki soal
+            $jadwals = Jadwal::whereIn('id', $ids)->with('soal')->get();
+            $usedJadwals = $jadwals->filter(function ($jadwal) {
+                return $jadwal->soal()->exists();
+            });
+
+            if ($usedJadwals->count() > 0) {
+                $names = $usedJadwals->map(function ($jadwal) {
+                    return $jadwal->mapel->nama_mapel ?? 'Unknown';
+                })->implode(', ');
+
+                return redirect()->route('jadwal-ujian.index')
+                    ->with('error', 'Beberapa jadwal tidak dapat dihapus karena sudah memiliki soal: ' . $names);
+            }
+
+            Jadwal::whereIn('id', $ids)->delete();
+
+            return redirect()->route('jadwal-ujian.index')
+                ->with('success', count($ids) . ' jadwal ujian berhasil dihapus.');
+        } catch (QueryException $e) {
+            if ($e->getCode() == '23000') {
+                return redirect()->route('jadwal-ujian.index')
+                    ->with('error', 'Gagal menghapus! Salah satu jadwal masih terikat dengan transaksi data lain.');
+            }
+
+            return redirect()->route('jadwal-ujian.index')
+                ->with('error', 'Terjadi kesalahan sistem saat menghapus data.');
+        }
     }
 }

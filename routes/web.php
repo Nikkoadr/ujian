@@ -41,6 +41,7 @@ Route::get('/home', [HomeController::class, 'index'])->name('home');
 
 Route::resource('jadwal-ujian', JadwalUjianController::class);
 Route::post('/jadwal-ujian/import', [JadwalUjianController::class, 'import'])->name('jadwal-ujian.import');
+Route::post('/jadwal-ujian/destroy-multiple', [JadwalUjianController::class, 'destroyMultiple'])->name('jadwal-ujian.destroy-multiple');
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
 

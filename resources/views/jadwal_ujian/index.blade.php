@@ -11,8 +11,11 @@
             <button class="btn btn-sm btn-success shadow-sm mr-2" data-toggle="modal" data-target="#modalImport" style="border-radius: 10px; padding: 0.4rem 1rem;">
                 <i class="fas fa-file-excel fa-sm text-white-50 mr-2"></i> Import Excel
             </button>
-            <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahJadwal" style="border-radius: 10px; padding: 0.4rem 1rem;">
+            <button class="btn btn-sm btn-primary shadow-sm mr-2" data-toggle="modal" data-target="#modalTambahJadwal" style="border-radius: 10px; padding: 0.4rem 1rem;">
                 <i class="fas fa-calendar-plus fa-sm mr-2"></i> Buat Jadwal Ujian
+            </button>
+            <button class="btn btn-sm btn-danger shadow-sm" id="btnHapusMasal" style="border-radius: 10px; padding: 0.4rem 1rem; display: none;">
+                <i class="fas fa-trash fa-sm mr-2"></i> Hapus (<span id="jumlahTerpilih">0</span>)
             </button>
         </div>
         @endif
@@ -31,14 +34,25 @@
     @endif
 
     <div class="card shadow mb-4 border-0" style="border-radius: 15px;">
-        <div class="card-header py-3 bg-white border-0">
+        <div class="card-header py-3 bg-white border-0 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Daftar Ujian & Progress Soal</h6>
+            @if(Gate::allows('admin'))
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="checkAll">
+                <label class="form-check-label small font-weight-bold" for="checkAll">Pilih Semua</label>
+            </div>
+            @endif
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover" id="tabelUjian" width="100%" cellspacing="0">
                     <thead>
                         <tr class="bg-light text-dark">
+                            @if(Gate::allows('admin'))
+                            <th width="30" class="text-center">
+                                <input type="checkbox" id="checkAllTable">
+                            </th>
+                            @endif
                             <th>No</th>
                             <th>Kode & Nama Ujian</th>
                             <th>Tanggal & Jam</th>
@@ -51,9 +65,18 @@
                     <tbody>
                         @forelse($mapels as $mapel)
                         @php
-                            $jadwal = $mapel->jadwal->first(); // ambil satu jadwal (asumsi satu mapel satu jadwal di periode aktif)
+                            $jadwal = $mapel->jadwal->first();
                         @endphp
-                        <tr>
+                        <tr data-id="{{ $jadwal->id ?? '' }}">
+                            @if(Gate::allows('admin'))
+                            <td class="text-center">
+                                @if($jadwal)
+                                <input type="checkbox" class="checkbox-item" value="{{ $jadwal->id }}">
+                                @else
+                                <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                            @endif
                             <td>{{ $loop->iteration }}</td>
                             <td>
                                 <div class="font-weight-bold text-primary">{{ $mapel->kode_mapel }}</div>
@@ -96,7 +119,6 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm" style="border-radius: 10px; overflow: hidden; border: 1px solid #eaecf4;">
-                                    {{-- Kelola Soal (arah ke create soal dengan bawa jadwal_id & mapel_id) --}}
                                     @if($jadwal)
                                     <a href="{{ route('soal.manage', ['jadwalId' => $jadwal->id, 'mapelId' => $mapel->id]) }}" 
                                         class="btn btn-sm btn-white text-success border-right px-3" 
@@ -104,37 +126,38 @@
                                         <i class="fas fa-file-signature"></i>
                                     </a>
 
-                                        @if(Gate::allows('admin'))
-                                            {{-- Edit Jadwal --}}
-                                            <a href="{{ route('jadwal-ujian.edit', $jadwal->id) }}" 
-                                            class="btn btn-sm btn-white text-primary border-right px-3" 
-                                            title="Edit Jadwal">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
+                                    @if(Gate::allows('admin'))
+                                    <a href="{{ route('jadwal-ujian.edit', $jadwal->id) }}" 
+                                        class="btn btn-sm btn-white text-primary border-right px-3" 
+                                        title="Edit Jadwal">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
 
-                                            {{-- Hapus Jadwal --}}
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-white text-danger px-3" 
-                                                    onclick="confirmDelete({{ $jadwal->id }}, '{{ $mapel->nama_mapel }}')"
-                                                    title="Hapus Jadwal">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            <form id="delete-form-{{ $jadwal->id }}" 
-                                                action="{{ route('jadwal-ujian.destroy', $jadwal->id) }}" 
-                                                method="POST" style="display: none;">
-                                                @csrf
-                                                @method('DELETE')
-                                            </form>
-                                        @endif
+                                    <button type="button" 
+                                            class="btn btn-sm btn-white text-danger px-3" 
+                                            onclick="confirmDelete({{ $jadwal->id }}, '{{ addslashes($mapel->nama_mapel) }}')"
+                                            title="Hapus Jadwal">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <form id="delete-form-{{ $jadwal->id }}" 
+                                        action="{{ route('jadwal-ujian.destroy', $jadwal->id) }}" 
+                                        method="POST" style="display: none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
+                                    @endif
                                     @else
-                                        <span class="btn btn-sm btn-light text-muted px-3">Tidak ada jadwal</span>
+                                    <span class="btn btn-sm btn-light text-muted px-3">Tidak ada jadwal</span>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center">Belum ada jadwal ujian untuk periode ini.</td>
+                            <td colspan="{{ Gate::allows('admin') ? '8' : '7' }}" class="text-center py-4">
+                                <i class="fas fa-inbox fa-2x text-muted d-block mb-2"></i>
+                                <span class="text-muted">Belum ada jadwal ujian untuk periode ini.</span>
+                            </td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -143,6 +166,7 @@
         </div>
     </div>
 </div>
+
 {{-- MODAL IMPORT EXCEL --}}
 @if(Gate::allows('admin'))
 <div class="modal fade" id="modalImport" tabindex="-1" role="dialog" aria-labelledby="modalImportLabel" aria-hidden="true">
@@ -185,23 +209,26 @@
     </div>
 </div>
 @endif
+
 {{-- MODAL TAMBAH JADWAL UJIAN --}}
 @if(Gate::allows('admin'))
 <div class="modal fade" id="modalTambahJadwal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content border-0 shadow" style="border-radius: 20px;">
             <div class="modal-header border-0">
-                <h5 class="modal-title font-weight-bold text-gray-800"><i class="fas fa-calendar-plus text-primary mr-2"></i> Tambah Jadwal Ujian</h5>
+                <h5 class="modal-title font-weight-bold text-gray-800">
+                    <i class="fas fa-calendar-plus text-primary mr-2"></i> Tambah Jadwal Ujian
+                </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form action="{{ route('jadwal-ujian.store') }}" method="POST">
+            <form action="{{ route('jadwal-ujian.store') }}" method="POST" id="formTambahJadwal">
                 @csrf
                 <div class="modal-body p-4">
                     <div class="row">
                         <div class="col-md-6 form-group">
-                            <label class="small font-weight-bold">Periode Ujian</label>
+                            <label class="small font-weight-bold">Periode Ujian <span class="text-danger">*</span></label>
                             <select name="periode_ujian_id" class="form-control @error('periode_ujian_id') is-invalid @enderror" required>
                                 <option value="">Pilih Periode</option>
                                 @foreach($periodeUjian as $periode)
@@ -213,7 +240,7 @@
                             @error('periode_ujian_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6 form-group">
-                            <label class="small font-weight-bold">Pilih Mata Pelajaran</label>
+                            <label class="small font-weight-bold">Pilih Mata Pelajaran <span class="text-danger">*</span></label>
                             <select name="mapel_id" class="form-control @error('mapel_id') is-invalid @enderror" required>
                                 <option value="">Pilih Mapel</option>
                                 @foreach($semuaMapel as $m)
@@ -227,28 +254,28 @@
                     </div>
                     <div class="row">
                         <div class="col-md-4 form-group">
-                            <label class="small font-weight-bold">Tanggal Ujian</label>
+                            <label class="small font-weight-bold">Tanggal Ujian <span class="text-danger">*</span></label>
                             <input type="date" name="tanggal_ujian" class="form-control @error('tanggal_ujian') is-invalid @enderror" value="{{ old('tanggal_ujian') }}" required>
                             @error('tanggal_ujian') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4 form-group">
-                            <label class="small font-weight-bold">Jam Mulai</label>
+                            <label class="small font-weight-bold">Jam Mulai <span class="text-danger">*</span></label>
                             <input type="time" name="jam_mulai" class="form-control @error('jam_mulai') is-invalid @enderror" value="{{ old('jam_mulai') }}" required>
                             @error('jam_mulai') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4 form-group">
-                            <label class="small font-weight-bold">Jam Selesai</label>
+                            <label class="small font-weight-bold">Jam Selesai <span class="text-danger">*</span></label>
                             <input type="time" name="jam_selesai" class="form-control @error('jam_selesai') is-invalid @enderror" value="{{ old('jam_selesai') }}" required>
                             @error('jam_selesai') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="small font-weight-bold">Durasi (HH:mm:ss)</label>
+                        <label class="small font-weight-bold">Durasi (HH:mm:ss) <span class="text-danger">*</span></label>
                         <input type="time" name="durasi" step="1" class="form-control @error('durasi') is-invalid @enderror" value="{{ old('durasi') }}" required>
                         @error('durasi') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="small font-weight-bold">Status</label>
+                        <label class="small font-weight-bold">Status <span class="text-danger">*</span></label>
                         <select name="status" class="form-control @error('status') is-invalid @enderror" required>
                             <option value="aktif" {{ old('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
                             <option value="nonaktif" {{ old('status') == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
@@ -257,8 +284,12 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary font-weight-bold px-4 shadow">Simpan</button>
+                    <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal" style="border-radius: 10px;">
+                        <i class="fas fa-times mr-1"></i> Batal
+                    </button>
+                    <button type="submit" class="btn btn-primary font-weight-bold px-4 shadow" style="border-radius: 10px;">
+                        <i class="fas fa-save mr-1"></i> Simpan
+                    </button>
                 </div>
             </form>
         </div>
@@ -266,80 +297,254 @@
 </div>
 @endif
 
+{{-- FORM DESTROY MULTIPLE --}}
+@if(Gate::allows('admin'))
+<form id="form-destroy-multiple" action="{{ route('jadwal-ujian.destroy-multiple') }}" method="POST" style="display: none;">
+    @csrf
+    <div id="destroy-ids-container"></div>
+</form>
+@endif
+
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    $(document).ready(function() {
-        $('#tabelUjian').DataTable({
+$(document).ready(function() {
+    'use strict';
+
+    // ============================================
+    // 1. CEK & DESTROY DATATABLES SEBELUMNYA
+    // ============================================
+    if ($.fn.dataTable && $.fn.dataTable.isDataTable('#tabelUjian')) {
+        $('#tabelUjian').DataTable().destroy();
+    }
+
+    // ============================================
+    // 2. INISIALISASI DATATABLES
+    // ============================================
+    var table = null;
+    try {
+        table = $('#tabelUjian').DataTable({
             "language": {
                 "search": "Cari Ujian:",
-                "lengthMenu": "Tampil _MENU_",
+                "lengthMenu": "Tampil _MENU_ data per halaman",
                 "zeroRecords": "Data tidak ditemukan",
                 "info": "Menampilkan halaman _PAGE_ dari _PAGES_",
-            }
+                "infoEmpty": "Tidak ada data",
+                "infoFiltered": "(difilter dari _MAX_ total data)",
+                "paginate": {
+                    "first": "Pertama",
+                    "last": "Terakhir",
+                    "next": "→",
+                    "previous": "←"
+                }
+            },
+            "columnDefs": [
+                @if(Gate::allows('admin'))
+                { "orderable": false, "targets": [0, -1] },
+                @else
+                { "orderable": false, "targets": -1 },
+                @endif
+            ],
+            "drawCallback": function() {
+                if (typeof updateCheckboxState === 'function') {
+                    updateCheckboxState();
+                }
+            },
+            "pageLength": 10,
+            "lengthMenu": [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Semua"]],
+            "autoWidth": false,
+            "responsive": true,
+            "processing": false,
+            "serverSide": false
         });
+    } catch (e) {
+        console.warn('DataTables initialization error:', e);
+        $('#tabelUjian').removeClass('dataTable');
+    }
 
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true
+    // ============================================
+    // 3. TOAST NOTIFICATION
+    // ============================================
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
+        }
+    });
+
+    @if(session('success'))
+        Toast.fire({
+            icon: 'success',
+            title: "{{ session('success') }}"
         });
+    @endif
 
-        @if(session('success'))
-            Toast.fire({ icon: 'success', title: "{{ session('success') }}" });
-        @endif
-
-        @if(session('error') || $errors->any())
-            Toast.fire({ icon: 'error', title: "{{ session('error') ?? 'Periksa kembali inputan Anda.' }}" });
-            @if($errors->any())
-                $('#modalTambahJadwal').modal('show');
-            @endif
-        @endif
-
-        $('#importFile').on('change', function() {
-            var fileName = $(this).val().split('\\').pop();
-            if (fileName) {
-                $('#fileLabel').text(fileName).addClass('selected');
-            } else {
-                $('#fileLabel').text('Pilih file...').removeClass('selected');
-            }
+    @if(session('error'))
+        Toast.fire({
+            icon: 'error',
+            title: "{{ session('error') }}"
         });
+    @endif
 
-        // Reset saat modal ditutup
-        $('#modalImport').on('hidden.bs.modal', function() {
+    @if($errors->any())
+        $('#modalTambahJadwal').modal('show');
+        Toast.fire({
+            icon: 'error',
+            title: "Periksa kembali inputan Anda."
+        });
+    @endif
+
+    // ============================================
+    // 4. CUSTOM FILE INPUT
+    // ============================================
+    $('#importFile').on('change', function() {
+        var fileName = $(this).val().split('\\').pop();
+        if (fileName) {
+            $('#fileLabel').text(fileName).addClass('selected');
+        } else {
+            $('#fileLabel').text('Pilih file...').removeClass('selected');
+        }
+    });
+
+    $('#modalImport').on('hidden.bs.modal', function() {
+        $('#importFile').val('');
+        $('#fileLabel').text('Pilih file...').removeClass('selected');
+    });
+
+    $('#modalImport .btn-light').on('click', function() {
+        setTimeout(function() {
             $('#importFile').val('');
             $('#fileLabel').text('Pilih file...').removeClass('selected');
+        }, 100);
+    });
+
+    // ============================================
+    // 5. CHECKBOX UNTUK DESTROY MULTIPLE
+    // ============================================
+    @if(Gate::allows('admin'))
+    
+    function updateCheckboxState() {
+        var totalCheckboxes = $('.checkbox-item').length;
+        var checkedCheckboxes = $('.checkbox-item:checked').length;
+        
+        if (totalCheckboxes > 0) {
+            $('#checkAllTable').prop('checked', totalCheckboxes === checkedCheckboxes);
+            $('#checkAll').prop('checked', totalCheckboxes === checkedCheckboxes);
+        }
+        
+        if (checkedCheckboxes > 0) {
+            $('#btnHapusMasal').show();
+            $('#jumlahTerpilih').text(checkedCheckboxes);
+        } else {
+            $('#btnHapusMasal').hide();
+        }
+    }
+
+    $('#checkAllTable').on('change', function() {
+        var isChecked = $(this).prop('checked');
+        $('.checkbox-item').prop('checked', isChecked);
+        updateCheckboxState();
+    });
+
+    $('#checkAll').on('change', function() {
+        var isChecked = $(this).prop('checked');
+        $('#checkAllTable').prop('checked', isChecked);
+        $('.checkbox-item').prop('checked', isChecked);
+        updateCheckboxState();
+    });
+
+    $(document).on('change', '.checkbox-item', function() {
+        updateCheckboxState();
+    });
+
+    // ============================================
+    // 6. DESTROY MULTIPLE
+    // ============================================
+    $('#btnHapusMasal').on('click', function() {
+        var selectedIds = [];
+        $('.checkbox-item:checked').each(function() {
+            selectedIds.push($(this).val());
         });
 
-        // Reset saat tombol batal diklik
-        $('#modalImport .btn-light').on('click', function() {
-            setTimeout(function() {
-                $('#importFile').val('');
-                $('#fileLabel').text('Pilih file...').removeClass('selected');
-            }, 100);
+        if (selectedIds.length === 0) {
+            Toast.fire({
+                icon: 'warning',
+                title: 'Tidak ada data yang dipilih.'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Hapus data terpilih?',
+            text: 'Anda akan menghapus ' + selectedIds.length + ' jadwal ujian sekaligus!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Hapus Semua!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                let container = $('#destroy-ids-container');
+                container.empty();
+
+                selectedIds.forEach(id => {
+                    container.append(`<input type="hidden" name="ids[]" value="${id}">`);
+                });
+
+                $('#form-destroy-multiple').submit();
+            }
         });
     });
 
-    function confirmDelete(id, name) {
-        Swal.fire({
-            title: 'Hapus Jadwal Ujian?',
-            text: "Jadwal untuk " + name + " akan dihapus permanen!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#e74a3b',
-            cancelButtonColor: '#858796',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                document.getElementById('delete-form-' + id).submit();
-            }
+    // Update checkbox saat page/search di DataTable
+    if (table) {
+        $('#tabelUjian').on('page.dt search.dt', function() {
+            updateCheckboxState();
         });
     }
+
+    // Inisialisasi pertama
+    setTimeout(updateCheckboxState, 100);
+
+    @endif
+
+    // ============================================
+    // 7. TOOLTIP
+    // ============================================
+    $('[title]').tooltip({
+        placement: 'top',
+        trigger: 'hover'
+    });
+
+});
+
+// ============================================
+// 8. DELETE CONFIRMATION
+// ============================================
+function confirmDelete(id, name) {
+    Swal.fire({
+        title: 'Hapus Jadwal Ujian?',
+        html: "Jadwal untuk <strong>" + name + "</strong> akan dihapus permanen!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74a3b',
+        cancelButtonColor: '#858796',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('delete-form-' + id).submit();
+        }
+    });
+}
 </script>
 @endpush
