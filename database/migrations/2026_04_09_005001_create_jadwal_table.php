@@ -17,7 +17,7 @@ return new class extends Migration
             $table->time('jam_selesai');
             $table->time('durasi');
             $table->enum('status', ['aktif', 'nonaktif'])->default('aktif');
-            $table->string('token', 6)->unique();
+            $table->string('token', 6);
             $table->timestamps();
         });
     }

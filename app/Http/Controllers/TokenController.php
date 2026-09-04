@@ -61,26 +61,23 @@ class TokenController extends Controller
 
     public function refreshToken(Request $request)
     {
+        // Keamanan API Key
         if ($request->header('X-Api-Key') !== 'aja_kepo_ya') {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $newToken = strtoupper(Str::random(6));
-        $now = Carbon::now();
+        $newToken = strtoupper(\Illuminate\Support\Str::random(6));
 
-        Jadwal::where('status', 'aktif')
-            ->whereDate('tanggal_ujian', $now->toDateString())
-            ->whereTime('jam_mulai', '<=', $now->toTimeString())
-            ->whereTime('jam_selesai', '>=', $now->toTimeString())
-            ->update([
-                'token' => $newToken,
-                'updated_at' => now()
-            ]);
+        // Update semua record token dan paksa update timestamp
+        Jadwal::query()->update([
+            'token' => $newToken,
+            'updated_at' => now()
+        ]);
 
         return response()->json([
             'status' => 'success',
             'new_token' => $newToken,
-            'expiry' => 300
+            'expiry' => 300 // Detik
         ]);
     }
 
