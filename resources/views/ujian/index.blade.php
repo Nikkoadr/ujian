@@ -695,7 +695,7 @@
     </form>
 
     <form id="form-selesai"
-        action="{{ route('ujian.selesai', $mapel) }}"
+        action="{{ route('ujian.selesai', $jadwal->id) }}"
         method="POST"
         class="hidden">
         @csrf

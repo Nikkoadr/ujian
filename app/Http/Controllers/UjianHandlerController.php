@@ -11,6 +11,22 @@ use App\Models\UjianSiswa;
 
 class UjianHandlerController extends Controller
 {
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
+     * Tampilkan daftar soal untuk suatu mapel.
+     *
+     * @param  int  $mapel_id
+     * @return \Illuminate\Contracts\Support\Renderable
+     */
     public function index(Request $request)
     {
         $kelas = Kelas::orderBy('nama_kelas')->get();
