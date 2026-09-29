@@ -448,6 +448,15 @@
                     </span>
                 </div>
 
+                <div x-show="unsavedCount > 0"
+                     x-cloak
+                     class="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500 border border-red-300 animate-pulse"
+                     :title="unsavedCount + ' jawaban belum tersimpan ke server — otomatis dikirim ulang. Jangan keluar halaman.'">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-white">
+                        Belum tersimpan: <span x-text="unsavedCount"></span>
+                    </span>
+                </div>
+
                 <template x-if="settingAntiNyontek">
                     <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/20 border border-red-400/30">
                         <span class="text-xs sm:text-sm font-bold text-white" x-text="pelanggaran + '/' + maxPelanggaran"></span>
@@ -648,6 +657,11 @@
                             <div class="w-3 h-3 rounded bg-sky-600"></div>
                             <span>Aktif</span>
                         </div>
+
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-3 rounded bg-red-400"></div>
+                            <span>Belum tersimpan</span>
+                        </div>
                     </div>
                 </div>
 
@@ -714,16 +728,39 @@
             pelanggaran: {{ (int) $pelanggaran }},
             maxPelanggaran: @json($settingMaxPelanggaran),
             isBlocked: false,
+            isExiting: false,
             isSaving: false,
+            isSubmitting: false,
             isOnline: navigator.onLine,
             isProcessingViolation: false,
-            saveTimeout: null,
+            saveTimers: {},
+            pendingSaves: {},
+            retryTimer: null,
+            saveAlertAt: 0,
+            // Batas tunggu 1x simpan ke server (ms). Lewat ini = dianggap gagal,
+            // jawaban DITAHAN (tidak hilang) dan dikirim ulang otomatis.
+            saveTimeoutMs: 12000,
+            // Toleransi meninggalkan halaman (ms). Keluar di bawah ini (layar HP
+            // mati sesaat, telepon masuk, tarik notifikasi) hanya ditegur ringan,
+            // TIDAK dihitung pelanggaran.
+            violationGraceMs: 5000,
+            leaveTimer: null,
+            rearmUntil: 0,
 
             get currentSoal() {
                 return this.listSoal[this.currentIndex] || {};
             },
 
+            get unsavedCount() {
+                return this.listSoal.filter((s) => s.saveState === 'error').length;
+            },
+
             init() {
+                // Tandai semua jawaban bawaan server sebagai sudah tersimpan.
+                this.listSoal.forEach((s) => {
+                    s.saveState = 'saved';
+                });
+
                 this.startTimer();
                 this.refreshMath();
                 this.preloadNextImage();
@@ -739,6 +776,7 @@
 
                 window.addEventListener('online', () => {
                     this.isOnline = true;
+                    this.flushPendingSaves();
                 });
 
                 window.addEventListener('offline', () => {
@@ -749,30 +787,66 @@
             setupProtection() {
                 if (!this.settingAntiNyontek) return;
 
-                const detectViolation = () => {
-                    if (
-                        this.settingAntiNyontek &&
-                        document.visibilityState === 'hidden' &&
-                        !this.isBlocked &&
-                        !this.isProcessingViolation
-                    ) {
-                        this.handleViolation();
-                    }
-                };
-
-                document.addEventListener('visibilitychange', detectViolation);
-
-                window.addEventListener('blur', () => {
-                    if (this.settingAntiNyontek) {
-                        setTimeout(detectViolation, 500);
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') {
+                        this.onPotentialLeave();
+                    } else {
+                        this.onReturnToExam();
                     }
                 });
+
+                window.addEventListener('blur', () => this.onPotentialLeave());
+                window.addEventListener('focus', () => this.onReturnToExam());
+            },
+
+            onPotentialLeave() {
+                if (!this.settingAntiNyontek || this.isBlocked || this.isProcessingViolation) return;
+                // Hanya halaman yang benar-benar tersembunyi yang dijadwalkan.
+                // blur tanpa hidden (mis. popup izin browser) diabaikan.
+                if (document.visibilityState !== 'hidden') return;
+                if (Date.now() < this.rearmUntil) return;
+                if (this.leaveTimer) return;
+
+                this.leaveTimer = setTimeout(() => {
+                    this.leaveTimer = null;
+                    if (document.visibilityState === 'hidden') {
+                        this.handleViolation();
+                    }
+                }, this.violationGraceMs);
+            },
+
+            onReturnToExam() {
+                // Kembali sebelum grace habis = kejadian jinak (layar mati sesaat,
+                // notifikasi, dsb): batalkan hitungan, beri teguran ringan saja.
+                if (this.leaveTimer) {
+                    clearTimeout(this.leaveTimer);
+                    this.leaveTimer = null;
+
+                    this.rearmUntil = Date.now() + 3000;
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top',
+                        icon: 'info',
+                        title: 'Tetap di halaman ujian ya — keluar lebih dari 5 detik tercatat sebagai pelanggaran',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+
+                    return;
+                }
+
+                this.rearmUntil = Date.now() + 3000;
             },
 
             async handleViolation() {
                 if (!this.settingAntiNyontek || this.isBlocked || this.isProcessingViolation) return;
 
                 this.isProcessingViolation = true;
+                this.rearmUntil = Date.now() + 3000;
+
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), this.saveTimeoutMs);
 
                 try {
                     const response = await fetch("{{ route('ujian.pelanggaran') }}", {
@@ -784,54 +858,98 @@
                         },
                         body: JSON.stringify({
                             jadwal_id: {{ $jadwal->id }}
-                        })
+                        }),
+                        signal: controller.signal
                     });
+
+                    clearTimeout(timer);
+
+                    if (response.status === 419) {
+                        Swal.fire({
+                            title: 'Sesi Berakhir',
+                            text: 'Sesi Anda habis. Refresh halaman dan masuk kembali agar ujian tercatat dengan benar.',
+                            icon: 'warning',
+                            confirmButtonColor: '#0ea5e9'
+                        });
+                        return;
+                    }
 
                     const data = await response.json();
                     this.pelanggaran = data.total;
+                    if (data.max) this.maxPelanggaran = data.max;
 
                     if (data.blocked) {
                         this.blokirUser();
                     } else {
                         await Swal.fire({
                             title: 'Peringatan!',
-                            text: `Anda terdeteksi meninggalkan halaman ujian. Pelanggaran: (${this.pelanggaran}/${this.maxPelanggaran})`,
+                            text: `Anda terdeteksi keluar halaman ujian lebih dari 5 detik. Pelanggaran: (${this.pelanggaran}/${this.maxPelanggaran}). Tetap di halaman ujian ya.`,
                             icon: 'warning',
                             confirmButtonColor: '#0ea5e9'
                         });
                     }
 
                 } catch (e) {
+                    clearTimeout(timer);
                     console.error('Gagal mencatat pelanggaran:', e);
+                    // Jangan diam: hitungan tetap di server, tapi siswa wajib tahu
+                    // agar tidak bingung dan tetap di halaman ujian.
+                    Swal.fire({
+                        toast: true,
+                        position: 'top',
+                        icon: 'warning',
+                        title: 'Koneksi bermasalah. Tetap di halaman ujian — jangan pindah tab.',
+                        showConfirmButton: false,
+                        timer: 4000
+                    });
                 } finally {
                     this.isProcessingViolation = false;
                 }
             },
 
             blokirUser() {
-                if (this.isBlocked) return;
+                this.forceExitToDaftar(
+                    'AKUN DIBLOKIR!',
+                    'Pelanggaran telah mencapai batas maksimal. Mengalihkan ke daftar ujian...'
+                );
+            },
+
+            forceExitToDaftar(title, text) {
+                // Satu pintu keluar untuk semua kasus blokir: tanpa tombol OK,
+                // tanpa logout, langsung kembali ke daftar ujian setelah jeda singkat.
+                // Status tetap login agar siswa bisa lanjut lagi setelah pengawas membuka blokir.
+                if (this.isExiting) return;
+                this.isExiting = true;
                 this.isBlocked = true;
 
+                // Hentikan semua aktivitas latar agar tidak request sia-sia.
+                if (this.retryTimer) {
+                    clearInterval(this.retryTimer);
+                    this.retryTimer = null;
+                }
+                if (this.leaveTimer) {
+                    clearTimeout(this.leaveTimer);
+                    this.leaveTimer = null;
+                }
+                Object.values(this.saveTimers).forEach((t) => clearTimeout(t));
+
                 Swal.fire({
-                    title: 'AKUN DIBLOKIR!',
-                    text: 'Pelanggaran telah mencapai batas maksimal. Sesi dikeluarkan...',
+                    title: title,
+                    text: text,
                     icon: 'error',
                     showConfirmButton: false,
-                    allowOutsideClick: false
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 });
 
-                // Langsung submit form logout setelah delay singkat
                 setTimeout(() => {
-                    const logoutForm = document.getElementById('logout-form');
-                    if (logoutForm) {
-                        logoutForm.submit();
-                    } else {
-                        window.location.href = "{{ route('login') }}";
-                    }
+                    window.location.href = "{{ route('home') }}";
                 }, 2500);
             },
 
             confirmSelesai() {
+                if (this.isSubmitting || this.isExiting) return;
+
                 // Jika anti-contek nonaktif atau settingTombolSelesai bernilai false, tombol langsung bisa ditekan
                 if (
                     this.settingAntiNyontek &&
@@ -841,9 +959,13 @@
                     return;
                 }
 
+                const belum = this.unsavedCount;
+
                 Swal.fire({
                     title: 'Selesai Ujian?',
-                    text: 'Pastikan semua jawaban sudah terisi dengan benar.',
+                    text: belum > 0
+                        ? `Ada ${belum} jawaban belum tersimpan ke server. Saat konfirmasi, sistem akan mengirim semuanya dulu.`
+                        : 'Pastikan semua jawaban sudah terisi dengan benar.',
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonText: 'Ya, Selesai',
@@ -857,22 +979,62 @@
                 });
             },
 
-            submitUjian() {
-                document.getElementById('form-selesai').submit();
+            async submitUjian() {
+                if (this.isSubmitting || this.isExiting) return;
+                this.isSubmitting = true;
+
+                try {
+                    // Pastikan semua jawaban benar-benar sampai ke server dulu.
+                    // Tanpa ini, jawaban terakhir bisa hilang karena balapan
+                    // antara request simpan dan submit form selesai.
+                    await this.flushPendingSaves();
+
+                    const gagal = this.listSoal.filter((s) => s.saveState === 'error');
+
+                    if (gagal.length > 0) {
+                        const hasil = await Swal.fire({
+                            title: 'Ada jawaban belum tersimpan!',
+                            html: `<b>${gagal.length} jawaban</b> belum sampai ke server (soal nomor: ${gagal.map((s) => s.nomor).join(', ')}).<br><br>Coba kirim lagi, atau selesaikan dengan risiko jawaban tersebut bernilai kosong.`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Coba Kirim Lagi',
+                            cancelButtonText: 'Tetap Selesaikan',
+                            confirmButtonColor: '#0ea5e9',
+                            cancelButtonColor: '#64748b'
+                        });
+
+                        if (hasil.isConfirmed) {
+                            return;
+                        }
+                    }
+
+                    document.getElementById('form-selesai').submit();
+                } finally {
+                    this.isSubmitting = false;
+                }
             },
 
-            async saveToDb() {
-                if (this.isBlocked) return false;
+            refreshSavingIndicator() {
+                this.isSaving = this.listSoal.some((s) => s.saveState === 'saving');
+            },
 
-                this.isSaving = true;
+            async saveToDb(soal, options = {}) {
+                const silent = options.silent === true;
+                if (this.isBlocked || !soal) return false;
+
+                soal.saveState = 'saving';
+                this.refreshSavingIndicator();
 
                 const payloadData = {
                     jadwal_id: {{ $jadwal->id }},
                     mapel_id: {{ $mapel->id }},
-                    soal_id: this.currentSoal.id,
-                    jawaban_id: this.currentSoal.jawaban_terpilih,
-                    is_ragu: this.currentSoal.is_ragu ? 1 : 0
+                    soal_id: soal.id,
+                    jawaban_id: soal.jawaban_terpilih,
+                    is_ragu: soal.is_ragu ? 1 : 0
                 };
+
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), this.saveTimeoutMs);
 
                 try {
                     const response = await fetch("{{ route('ujian.simpan') }}", {
@@ -882,82 +1044,152 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                         },
-                        body: JSON.stringify(payloadData)
+                        body: JSON.stringify(payloadData),
+                        signal: controller.signal
                     });
 
-                    if (!response.ok) {
-                        throw new Error('Gagal menyimpan jawaban');
+                    clearTimeout(timer);
+
+                    // Sesi kedaluwarsa (CSRF tidak cocok): JANGAN anggap offline,
+                    // siswa harus refresh agar token baru — bukan klik ulang sia-sia.
+                    if (response.status === 419) {
+                        soal.saveState = 'error';
+                        delete this.pendingSaves[soal.id];
+                        this.refreshSavingIndicator();
+                        Swal.fire({
+                            title: 'Sesi Berakhir',
+                            text: 'Sesi Anda habis. REFRESH halaman ini lalu jawab ulang soal yang bertanda merah agar tersimpan.',
+                            icon: 'warning',
+                            confirmButtonColor: '#0ea5e9'
+                        });
+                        return false;
                     }
 
+                    // Waktu habis / akun diblokir: tampilkan pesan server apa adanya.
+                    if (response.status === 403) {
+                        const data = await response.json().catch(() => ({}));
+
+                        // Akun diblokir = sama seperti pelanggaran maks:
+                        // tanpa tombol OK, langsung kembali ke daftar ujian.
+                        if (data.blocked === true) {
+                            this.forceExitToDaftar('Akun Diblokir', data.error || 'Akun diblokir. Mengalihkan ke daftar ujian...');
+                            return false;
+                        }
+
+                        soal.saveState = 'error';
+                        delete this.pendingSaves[soal.id];
+                        this.refreshSavingIndicator();
+                        Swal.fire({
+                            title: 'Tidak Dapat Menyimpan',
+                            text: data.error || 'Ujian tidak lagi valid.',
+                            icon: 'warning',
+                            confirmButtonColor: '#0ea5e9'
+                        });
+                        return false;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+
+                    // SUKSES: jawaban aman di server.
+                    soal.saveState = 'saved';
+                    delete this.pendingSaves[soal.id];
                     this.isOnline = true;
+                    this.refreshSavingIndicator();
                     return true;
 
                 } catch (e) {
+                    clearTimeout(timer);
                     console.error('Simpan gagal:', e);
-                    this.isOnline = false;
 
-                    Swal.fire({
-                        title: 'Koneksi Terputus',
-                        text: 'Jawaban belum tersimpan ke server. Periksa internet atau hubungi pengawas.',
-                        icon: 'error',
-                        confirmButtonColor: '#ef4444'
-                    });
+                    const timeout = e && e.name === 'AbortError';
+                    // Hanya masalah jaringan/timeout yang berarti koneksi bermasalah.
+                    // Error HTTP (500/validasi) bukan urusan koneksi — jangan blokir siswa.
+                    if (timeout || !navigator.onLine || (e instanceof TypeError)) {
+                        this.isOnline = false;
+                    }
+
+                    // PENTING: pilihan siswa TIDAK dihapus (tidak di-revert).
+                    // Ditandai merah + masuk antrean kirim ulang otomatis.
+                    soal.saveState = 'error';
+                    this.pendingSaves[soal.id] = true;
+                    this.refreshSavingIndicator();
+                    this.scheduleRetry();
+
+                    if (!silent && Date.now() - this.saveAlertAt > 30000) {
+                        this.saveAlertAt = Date.now();
+                        Swal.fire({
+                            toast: true,
+                            position: 'top',
+                            icon: 'warning',
+                            title: timeout
+                                ? 'Server lama merespons — jawaban DITAHAN dan dikirim otomatis. Jangan refresh dulu, tetap di halaman ini.'
+                                : 'Jawaban belum tersimpan — DITAHAN dan dikirim otomatis saat koneksi pulih. Soal bermasalah bertanda merah.',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+                    }
 
                     return false;
-
-                } finally {
-                    setTimeout(() => {
-                        this.isSaving = false;
-                    }, 300);
                 }
+            },
+
+            scheduleRetry() {
+                // Kirim ulang otomatis semua yang tertahan tiap 8 detik,
+                // sampai antrean kosong. Berhenti sendiri bila tidak ada sisa.
+                if (this.retryTimer) return;
+
+                this.retryTimer = setInterval(async () => {
+                    const ids = Object.keys(this.pendingSaves);
+
+                    if (!ids.length || this.isBlocked) {
+                        clearInterval(this.retryTimer);
+                        this.retryTimer = null;
+                        return;
+                    }
+
+                    for (const id of ids) {
+                        const soal = this.listSoal.find((s) => String(s.id) === String(id));
+                        if (soal && soal.saveState === 'error') {
+                            await this.saveToDb(soal, { silent: true });
+                        } else {
+                            delete this.pendingSaves[id];
+                        }
+                    }
+                }, 8000);
+            },
+
+            async flushPendingSaves() {
+                const antre = this.listSoal.filter((s) => s.saveState !== 'saved');
+                for (const soal of antre) {
+                    await this.saveToDb(soal, { silent: true });
+                }
+            },
+
+            queueSave(soal) {
+                // Debounce per soal (bukan 1 timer global): klik cepat pindah-pindah
+                // soal tidak lagi saling membatalkan simpanan.
+                clearTimeout(this.saveTimers[soal.id]);
+                this.saveTimers[soal.id] = setTimeout(() => {
+                    this.saveToDb(soal);
+                }, 400);
             },
 
             handleSelect(db_id) {
-                if (!this.isOnline) {
-                    Swal.fire({
-                        title: 'Koneksi Terputus',
-                        text: 'Jawaban tidak dapat disimpan. Periksa internet lalu lanjutkan kembali.',
-                        icon: 'error',
-                        confirmButtonColor: '#ef4444'
-                    });
-                    return;
-                }
-
-                const jawabanLama = this.currentSoal.jawaban_terpilih;
+                // Optimistic UI: pilihan langsung tampil & TIDAK dihapus walau gagal.
+                // Status kirim terlihat di indikator header + peta soal (merah = belum tersimpan).
                 this.currentSoal.jawaban_terpilih = db_id;
-
-                clearTimeout(this.saveTimeout);
-
-                this.saveTimeout = setTimeout(async () => {
-                    const berhasil = await this.saveToDb();
-                    if (!berhasil) {
-                        this.currentSoal.jawaban_terpilih = jawabanLama;
-                    }
-                }, 300);
+                this.currentSoal.saveState = 'saving';
+                this.refreshSavingIndicator();
+                this.queueSave(this.currentSoal);
             },
 
             toggleRagu() {
-                if (!this.isOnline) {
-                    Swal.fire({
-                        title: 'Koneksi Terputus',
-                        text: 'Status ragu-ragu tidak dapat disimpan karena koneksi bermasalah.',
-                        icon: 'error',
-                        confirmButtonColor: '#ef4444'
-                    });
-                    return;
-                }
-
-                const raguLama = this.currentSoal.is_ragu;
                 this.currentSoal.is_ragu = !this.currentSoal.is_ragu;
-
-                clearTimeout(this.saveTimeout);
-
-                this.saveTimeout = setTimeout(async () => {
-                    const berhasil = await this.saveToDb();
-                    if (!berhasil) {
-                        this.currentSoal.is_ragu = raguLama;
-                    }
-                }, 300);
+                this.currentSoal.saveState = 'saving';
+                this.refreshSavingIndicator();
+                this.queueSave(this.currentSoal);
             },
 
             startTimer() {
@@ -1019,6 +1251,11 @@
             },
 
             getNavClass(soal, index) {
+                // Merah = jawaban BELUM tersimpan di server (gagal kirim / antre).
+                // Ini sinyal ke siswa: jangan selesaikan dulu / tunggu kirim ulang otomatis.
+                if (soal.saveState === 'error' && this.currentIndex !== index) {
+                    return 'bg-red-100 border-red-400 text-red-600 shadow-sm animate-pulse';
+                }
                 if (this.currentIndex === index) {
                     return 'bg-sky-600 border-sky-600 text-white shadow-lg scale-110 z-10';
                 }

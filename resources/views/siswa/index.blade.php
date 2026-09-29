@@ -23,6 +23,23 @@
             <h6 class="m-0 font-weight-bold text-primary">Daftar Siswa & Status Akun</h6>
         </div>
         <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3 col-6 mb-2">
+                    <select id="filterStatus" class="form-control font-weight-bold" style="border-radius: 10px;">
+                        <option value="">Semua Status</option>
+                        <option value="aktif">Aktif</option>
+                        <option value="diblokir">Terblokir</option>
+                    </select>
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <select id="filterKelas" class="form-control font-weight-bold" style="border-radius: 10px;">
+                        <option value="">Semua Kelas</option>
+                        @foreach($kelas as $k)
+                            <option value="{{ $k->id }}">{{ $k->nama_kelas }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover" id="tabelSiswa" width="100%" cellspacing="0">
                     <thead>
@@ -35,66 +52,7 @@
                             <th class="text-center" width="15%">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach($siswas as $siswa)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>
-                                <div class="small">
-                                    <span class="badge badge-info mb-1">NISN: {{ $siswa->nisn }}</span>
-                                    <span class="badge badge-secondary mb-1">NIS: {{ $siswa->nis }}</span><br>
-                                    <span class="text-muted"><i class="fas fa-envelope fa-xs mr-1"></i> {{ $siswa->user->email }}</span><br>
-                                    <span class="text-muted">
-                                        <i class="fas fa-venus-mars fa-xs mr-1"></i> 
-                                        {{ $siswa->user->jenis_kelamin == 'laki-laki' ? 'Laki-laki' : 'Perempuan' }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="font-weight-bold text-dark">{{ $siswa->user->nama }}</td>
-                            <td>
-                                <span class="badge badge-light p-2 border">
-                                    <i class="fas fa-door-open mr-1 text-primary"></i> {{ $siswa->kelas->nama_kelas ?? '-' }}
-                                </span>
-                            </td>
-                            <td>
-                                @if($siswa->user->status == 'aktif')
-                                    <span class="badge badge-success px-3 py-2" style="border-radius: 8px;">Aktif</span>
-                                @else
-                                    <span class="badge badge-danger px-3 py-2" style="border-radius: 8px;">Terblokir</span>
-                                @endif
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group shadow-sm" style="border-radius: 10px; overflow: hidden; border: 1px solid #eaecf4;">
-                                    @if(Gate::allows('admin'))
-                                    <a href="{{ route('siswa.edit', $siswa->id) }}" class="btn btn-sm btn-white text-primary border-right px-3" title="Edit Data">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    @endif
-
-                                    {{-- Toggle Status --}}
-                                    <form action="{{ route('siswa.toggle-status', $siswa->id) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" class="btn btn-sm btn-white {{ $siswa->user->status == 'aktif' ? 'text-warning' : 'text-success' }} border-right px-3" 
-                                                title="{{ $siswa->user->status == 'aktif' ? 'Blokir' : 'Buka Blokir' }}">
-                                            <i class="fas {{ $siswa->user->status == 'aktif' ? 'fa-user-slash' : 'fa-user-check' }}"></i>
-                                        </button>
-                                    </form>
-
-                                    @if(Gate::allows('admin'))
-                                    <form action="{{ route('siswa.destroy', $siswa->id) }}" method="POST" id="delete-form-{{ $siswa->id }}" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="button" class="btn btn-sm btn-white text-danger px-3" onclick="confirmDelete({{ $siswa->id }}, '{{ $siswa->user->nama }}')" title="Hapus">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -232,12 +190,104 @@
 
 <script>
     $(document).ready(function() {
-        // DataTable
-        $('#tabelSiswa').DataTable({
+        const csrfToken = '{{ csrf_token() }}';
+
+        // DataTable server-side: hanya 10-100 baris per halaman yang ditransfer,
+        // search/filter/sort dikerjakan database (aman untuk 2000+ siswa).
+        const tabelSiswa = $('#tabelSiswa').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: "{{ route('siswa.index') }}",
+                data: function(d) {
+                    d.filterStatus = $('#filterStatus').val();
+                    d.filterKelas = $('#filterKelas').val();
+                }
+            },
+            columns: [
+                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                { data: 'detail', name: 'detail', orderable: false, searchable: false },
+                { data: 'nama', name: 'nama' },
+                { data: 'kelas', name: 'kelas', orderable: false, searchable: false },
+                { data: 'status', name: 'status', orderable: false, searchable: false },
+                { data: 'aksi', name: 'aksi', orderable: false, searchable: false, className: 'text-center' },
+            ],
+            order: [[2, 'asc']],
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
             "language": {
                 "search": "Cari Siswa:",
                 "lengthMenu": "Tampilkan _MENU_ data",
+                "processing": "Memuat data...",
+                "zeroRecords": "Data tidak ditemukan.",
+                "info": "Menampilkan _START_ - _END_ dari _TOTAL_ siswa",
+                "infoEmpty": "Tidak ada data siswa",
+                "infoFiltered": "(disaring dari _MAX_ siswa)",
+                "paginate": { "previous": "‹", "next": "›" }
             }
+        });
+
+        $('#filterStatus, #filterKelas').on('change', function() {
+            tabelSiswa.ajax.reload();
+        });
+
+        // Toggle blokir via AJAX (baris dinamis -> event delegation).
+        $('#tabelSiswa').on('click', '.btn-toggle-status', function() {
+            const id = $(this).data('id');
+
+            Swal.fire({
+                title: 'Ubah Status?',
+                text: 'Status akses siswa akan dibalik (Aktif ↔ Terblokir).',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4e73df',
+                cancelButtonColor: '#e74a3b',
+                confirmButtonText: 'Ya, Ubah!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+
+                $.post(`/siswa/toggle/${id}`, { _token: csrfToken })
+                    .done(function(res) {
+                        tabelSiswa.ajax.reload(null, false);
+                        Toast.fire({ icon: 'success', title: res.message || 'Status berhasil diubah.' });
+                    })
+                    .fail(function() {
+                        Toast.fire({ icon: 'error', title: 'Gagal mengubah status. Coba lagi.' });
+                    });
+            });
+        });
+
+        // Hapus via AJAX (baris dinamis -> event delegation).
+        $('#tabelSiswa').on('click', '.btn-delete-siswa', function() {
+            const id = $(this).data('id');
+            const nama = $(this).data('nama');
+
+            Swal.fire({
+                title: 'Apakah anda yakin?',
+                text: "Data siswa " + nama + " akan dihapus secara permanen!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4e73df',
+                cancelButtonColor: '#e74a3b',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+
+                $.ajax({
+                    url: `/siswa/${id}`,
+                    type: 'DELETE',
+                    data: { _token: csrfToken }
+                })
+                    .done(function() {
+                        tabelSiswa.ajax.reload(null, false);
+                        Toast.fire({ icon: 'success', title: 'Data siswa berhasil dihapus.' });
+                    })
+                    .fail(function() {
+                        Toast.fire({ icon: 'error', title: 'Gagal menghapus data. Coba lagi.' });
+                    });
+            });
         });
 
         // Custom File Input Label
@@ -288,22 +338,5 @@
         @endif
     });
 
-    function confirmDelete(id, name) {
-        Swal.fire({
-            title: 'Apakah anda yakin?',
-            text: "Data siswa " + name + " akan dihapus secara permanen!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#4e73df',
-            cancelButtonColor: '#e74a3b',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal',
-            borderRadius: '15px'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                document.getElementById('delete-form-' + id).submit();
-            }
-        });
-    }
 </script>
 @endpush

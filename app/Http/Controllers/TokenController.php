@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Jadwal;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Gate;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
@@ -43,6 +42,7 @@ class TokenController extends Controller
         // Pemisahan View berdasarkan Role
         if (Gate::allows('admin')) {
             $jadwals = Jadwal::with('mapel')->get();
+
             return view('token', compact('jadwals', 'token', 'secondsRemaining', 'isStale'));
         }
 
@@ -60,18 +60,18 @@ class TokenController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $newToken = strtoupper(\Illuminate\Support\Str::random(6));
+        $newToken = strtoupper(Str::random(6));
 
         // Update semua record token dan paksa update timestamp
         Jadwal::query()->update([
             'token' => $newToken,
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         return response()->json([
             'status' => 'success',
             'new_token' => $newToken,
-            'expiry' => 300 // Detik
+            'expiry' => 300, // Detik
         ]);
     }
 
@@ -79,28 +79,37 @@ class TokenController extends Controller
     {
         $request->validate([
             'ujian_id' => 'required|exists:jadwal,id',
-            'token'    => 'required|string|size:6'
+            'token' => 'required|string|size:6',
         ]);
 
         $jadwal = Jadwal::find($request->ujian_id);
 
-        if (!$jadwal || $jadwal->status !== 'aktif') {
+        if (! $jadwal || $jadwal->status !== 'aktif') {
             return response()->json([
                 'success' => false,
-                'message' => 'Jadwal ujian sedang tidak aktif.'
+                'message' => 'Jadwal ujian sedang tidak aktif.',
             ], 403);
         }
 
         $user = Auth::user();
         $sekarang = Carbon::now();
 
+        // Siswa diblokir: tolak di sini agar tetap di daftar ujian
+        // (pesan tampil inline di halaman daftar, tidak dilempar ke mana-mana).
+        if ($user->status === 'diblokir') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun diblokir. Hubungi pengawas untuk membuka blokir agar bisa mengikuti ujian.',
+            ], 403);
+        }
+
         // Normalisasi format tanggal dan jam
         $tglStr = Carbon::parse($jadwal->tanggal_ujian)->format('Y-m-d');
         $jamMulaiStr = Carbon::parse($jadwal->jam_mulai)->format('H:i:s');
         $jamSelesaiStr = Carbon::parse($jadwal->jam_selesai)->format('H:i:s');
 
-        $mulai   = Carbon::parse($tglStr . ' ' . $jamMulaiStr);
-        $selesai = Carbon::parse($tglStr . ' ' . $jamSelesaiStr);
+        $mulai = Carbon::parse($tglStr.' '.$jamMulaiStr);
+        $selesai = Carbon::parse($tglStr.' '.$jamSelesaiStr);
 
         // Cek apakah siswa sudah pernah mulai ujian
         $partisipasi = DB::table('ujian_siswa')
@@ -109,12 +118,12 @@ class TokenController extends Controller
             ->first();
 
         // Validasi waktu hanya jika siswa BELUM pernah memulai ujian
-        if (!$partisipasi) {
+        if (! $partisipasi) {
             // Cek tanggal pengerjaan
-            if (!$sekarang->isSameDay(Carbon::parse($tglStr))) {
+            if (! $sekarang->isSameDay(Carbon::parse($tglStr))) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ujian tidak dijadwalkan untuk hari ini.'
+                    'message' => 'Ujian tidak dijadwalkan untuk hari ini.',
                 ], 403);
             }
 
@@ -122,7 +131,7 @@ class TokenController extends Controller
             if ($sekarang->lt($mulai)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ujian belum dimulai.'
+                    'message' => 'Ujian belum dimulai.',
                 ], 403);
             }
 
@@ -130,7 +139,7 @@ class TokenController extends Controller
             if ($sekarang->gte($selesai)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Waktu ujian sudah berakhir.'
+                    'message' => 'Waktu ujian sudah berakhir.',
                 ], 403);
             }
         }
@@ -139,21 +148,21 @@ class TokenController extends Controller
         if (strtoupper(trim($jadwal->token)) === strtoupper(trim($request->token))) {
             // Set session akses dan string token aktif
             session([
-                'akses_ujian_' . $jadwal->id       => (int) $user->id,
-                'akses_ujian_token_' . $jadwal->id => trim($jadwal->token),
+                'akses_ujian_'.$jadwal->id => (int) $user->id,
+                'akses_ujian_token_'.$jadwal->id => trim($jadwal->token),
             ]);
             session()->save();
 
             return response()->json([
-                'success'  => true,
-                'message'  => 'Token Valid!',
-                'redirect' => route('ujian.mulai', ['jadwal' => $jadwal->id]) // Pastikan nama route sesuai web.php
+                'success' => true,
+                'message' => 'Token Valid!',
+                'redirect' => route('ujian.mulai', ['jadwal' => $jadwal->id]), // Pastikan nama route sesuai web.php
             ]);
         }
 
         return response()->json([
             'success' => false,
-            'message' => 'Token salah atau sudah kadaluwarsa.'
+            'message' => 'Token salah atau sudah kadaluwarsa.',
         ], 422);
     }
 }

@@ -1,38 +1,44 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\SoalController;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\MapelController;
-use App\Http\Controllers\UjianController;
-use App\Http\Controllers\SiswaController;
-use App\Http\Controllers\GuruController;
-use App\Http\Controllers\PengawasController;
-use App\Http\Controllers\LaporanController;
-use App\Http\Controllers\KelasController;
-use App\Http\Controllers\TokenController;
-use App\Http\Controllers\SettingController;
-use App\Http\Controllers\UjianHandlerController;
 use App\Http\Controllers\BankPertanyaanController;
-use App\Http\Controllers\PeriodeUjianController;
+use App\Http\Controllers\GuruController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\JadwalUjianController;
+use App\Http\Controllers\KelasController;
+use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\MapelController;
+use App\Http\Controllers\PengawasController;
+use App\Http\Controllers\PeriodeUjianController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SiswaController;
+use App\Http\Controllers\SoalController;
+use App\Http\Controllers\TokenController;
+use App\Http\Controllers\UjianController;
+use App\Http\Controllers\UjianHandlerController;
+use App\Models\Kelas;
+use App\Models\Mapel;
+use App\Models\PeriodeUjian;
+use App\Models\Siswa;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/up', fn() => response()->json(['status' => 'ok']));
+Route::get('/up', fn () => response()->json(['status' => 'ok']));
 
 Route::get('/', function () {
-    $siswaCount = \App\Models\Siswa::count();
-    $mapelCount = \App\Models\Mapel::count();
-    $kelasCount = \App\Models\Kelas::count();
+    $siswaCount = Siswa::count();
+    $mapelCount = Mapel::count();
+    $kelasCount = Kelas::count();
 
     // Ambil periode yang aktif (gunakan is_active, bukan status)
-    $periodeAktif = \App\Models\PeriodeUjian::where('is_active', true)->first();
+    $periodeAktif = PeriodeUjian::where('is_active', true)->first();
 
     return view('welcome', compact('siswaCount', 'mapelCount', 'kelasCount', 'periodeAktif'));
 });
 
 Route::get('/info', function () {
-    dd(phpinfo());
+    abort_unless(app()->environment('local') && config('app.debug'), 404);
+
+    phpinfo();
 });
 
 Auth::routes(['register' => false, 'reset' => false]);
@@ -48,7 +54,6 @@ Route::resource('kelas', KelasController::class);
 Route::resource('siswa', SiswaController::class);
 Route::post('siswa/import', [SiswaController::class, 'import'])->name('siswa.import');
 Route::patch('siswa/{id}/toggle-status', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle-status');
-Route::post('siswa/{id}/block', [SiswaController::class, 'toggleStatus'])->name('siswa.block');
 
 Route::resource('pengawas', PengawasController::class);
 Route::resource('periode_ujian', PeriodeUjianController::class);
@@ -94,6 +99,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ujian/{jadwal}/mulai', [UjianController::class, 'showExam'])->name('ujian.mulai');
     Route::post('/ujian/simpan', [UjianController::class, 'simpan'])->name('ujian.simpan');
     Route::post('/ujian/pelanggaran', [UjianController::class, 'pelanggaran'])->name('ujian.pelanggaran');
-    Route::post('/ujian/blokir', [UjianController::class, 'blokir'])->name('ujian.blokir');
+    Route::post('/ujian/blokir', [UjianController::class, 'blokirSiswa'])->name('ujian.blokir');
     Route::post('/ujian/selesai/{mapel}', [UjianController::class, 'selesai'])->name('ujian.selesai');
 });

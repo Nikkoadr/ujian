@@ -95,7 +95,7 @@
                 <div class="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center font-bold">!</div>
                 <div>
                     <h4 class="text-sm font-black text-red-600 uppercase">Akses Diblokir</h4>
-                    <p class="text-xs font-bold text-red-500 opacity-80">Akun Anda sedang ditangguhkan.</p>
+                    <p class="text-xs font-bold text-red-500 opacity-80">Hubungi pengawas untuk membuka blokir agar bisa mengikuti ujian.</p>
                 </div>
             </div>
         @elseif(Auth::user()->status === 'tidak_aktif' || Auth::user()->status === 'nonaktif')
