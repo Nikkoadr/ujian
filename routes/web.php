@@ -80,6 +80,8 @@ Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index
 Route::get('/laporan/mapel', [LaporanController::class, 'mapelByPeriode'])->name('laporan.mapel');
 Route::get('/laporan/kelas', [LaporanController::class, 'kelasByMapel'])->name('laporan.kelas');
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
+Route::get('/laporan/rekap', [LaporanController::class, 'rekap'])->name('laporan.rekap');
+Route::get('/laporan/rekap-pdf', [LaporanController::class, 'rekapPdf'])->name('laporan.rekap-pdf');
 
 Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
 

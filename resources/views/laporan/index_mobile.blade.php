@@ -20,11 +20,18 @@
                 </p>
             </div>
 
-            <button type="button"
-                onclick="openModalExport()"
-                class="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200 active:scale-95 transition-transform">
-                <i class="fas fa-file-excel fa-lg"></i>
-            </button>
+            <div class="flex gap-2">
+                <button type="button"
+                    onclick="openModalRekap()"
+                    class="w-12 h-12 bg-sky-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200 active:scale-95 transition-transform">
+                    <i class="fas fa-file-pdf fa-lg"></i>
+                </button>
+                <button type="button"
+                    onclick="openModalExport()"
+                    class="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200 active:scale-95 transition-transform">
+                    <i class="fas fa-file-excel fa-lg"></i>
+                </button>
+            </div>
         </div>
 
         <div class="relative">
@@ -119,6 +126,58 @@
                 <button type="submit"
                     class="flex-1 h-12 bg-emerald-500 text-white rounded-2xl font-bold shadow-lg shadow-emerald-100">
                     Download
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modalRekap"
+    class="fixed inset-0 bg-black/50 z-[999] hidden items-center justify-center px-5">
+    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+        <form method="GET">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="text-lg font-black text-slate-900">Rekap Nilai</h2>
+                <button type="button" onclick="closeModalRekap()" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <p class="text-xs text-slate-500 font-semibold">
+                    Baris = siswa sekelas, kolom = tiap mapel berisi nilai.
+                </p>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Periode Ujian</label>
+                    <select name="periode_ujian_id" required
+                        class="w-full h-12 bg-white border border-slate-200 rounded-2xl px-4 text-sm font-bold outline-none">
+                        @foreach($periodes as $p)
+                            <option value="{{ $p->id }}" {{ $p->is_active ? 'selected' : '' }}>{{ $p->nama_periode }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Kelas</label>
+                    <select name="kelas_id" required
+                        class="w-full h-12 bg-white border border-slate-200 rounded-2xl px-4 text-sm font-bold outline-none">
+                        <option value="">-- Pilih Kelas --</option>
+                        @foreach($kelas as $k)
+                            <option value="{{ $k->id }}">{{ $k->nama_kelas }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-slate-100 flex gap-3">
+                <button type="submit" formaction="{{ route('laporan.rekap') }}" formtarget="_blank"
+                    class="flex-1 h-12 bg-sky-500 text-white rounded-2xl font-bold shadow-lg shadow-sky-100">
+                    Pratinjau
+                </button>
+                <button type="submit" formaction="{{ route('laporan.rekap-pdf') }}"
+                    class="flex-1 h-12 bg-rose-500 text-white rounded-2xl font-bold shadow-lg shadow-rose-100">
+                    PDF
                 </button>
             </div>
         </form>
@@ -380,6 +439,16 @@ function openModalExport() {
 function closeModalExport() {
     document.getElementById('modalExport').classList.add('hidden');
     document.getElementById('modalExport').classList.remove('flex');
+}
+
+function openModalRekap() {
+    document.getElementById('modalRekap').classList.remove('hidden');
+    document.getElementById('modalRekap').classList.add('flex');
+}
+
+function closeModalRekap() {
+    document.getElementById('modalRekap').classList.add('hidden');
+    document.getElementById('modalRekap').classList.remove('flex');
 }
 
 document.getElementById('searchInput').addEventListener('input', function () {

@@ -11,6 +11,9 @@
             </p>
         </div>
 
+        <button type="button" class="btn btn-sm btn-info shadow-sm mr-2" data-toggle="modal" data-target="#modalRekapPdf">
+            <i class="fas fa-file-pdf fa-sm text-white-50 mr-1"></i> Rekap PDF
+        </button>
         <button type="button" class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#modalExportExcel">
             <i class="fas fa-file-excel fa-sm text-white-50 mr-1"></i> Download Excel
         </button>
@@ -100,6 +103,61 @@
 
                 <button type="submit" class="btn btn-success">
                     <i class="fas fa-download mr-1"></i> Download
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modalRekapPdf" tabindex="-1" role="dialog" aria-labelledby="modalRekapPdfLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <form method="GET" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold" id="modalRekapPdfLabel">
+                    Rekap Nilai Silang
+                </h5>
+
+                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p class="small text-muted">
+                    Baris = siswa sekelas, kolom = tiap mapel berisi nilai. Pilih periode dan kelas.
+                </p>
+
+                <div class="form-group">
+                    <label class="small font-weight-bold">Periode Ujian</label>
+                    <select name="periode_ujian_id" id="rekapPeriode" class="form-control" required>
+                        @foreach($periodes as $p)
+                            <option value="{{ $p->id }}" {{ $p->is_active ? 'selected' : '' }}>{{ $p->nama_periode }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="small font-weight-bold">Kelas</label>
+                    <select name="kelas_id" class="form-control" required>
+                        <option value="">-- Pilih Kelas --</option>
+                        @foreach($kelas as $k)
+                            <option value="{{ $k->id }}">{{ $k->nama_kelas }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    Batal
+                </button>
+
+                <button type="submit" class="btn btn-info" formaction="{{ route('laporan.rekap') }}" formtarget="_blank">
+                    <i class="fas fa-eye mr-1"></i> Pratinjau
+                </button>
+
+                <button type="submit" class="btn btn-danger" formaction="{{ route('laporan.rekap-pdf') }}">
+                    <i class="fas fa-download mr-1"></i> Download PDF
                 </button>
             </div>
         </form>

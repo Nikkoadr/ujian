@@ -7,6 +7,7 @@ use App\Models\Jadwal;
 use App\Models\Kelas;
 use App\Models\Mapel;
 use App\Models\PeriodeUjian;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -118,6 +119,160 @@ class LaporanController extends Controller
             new LaporanUjianExport($results, $judul),
             $filename
         );
+    }
+
+    /**
+     * Pratinjau rekap silang (khusus admin): baris = siswa sekelas,
+     * kolom = No/NIS/NISN/Nama + tiap mapel berisi nilai. Siap cetak.
+     */
+    public function rekap(Request $request)
+    {
+        if (Gate::denies('admin') && Gate::denies('pengawas')) {
+            abort(403);
+        }
+
+        $request->validate([
+            'periode_ujian_id' => 'required|exists:periode_ujian,id',
+            'kelas_id' => 'required|exists:kelas,id',
+        ]);
+
+        return view('laporan.rekap', $this->buildRekap(
+            $request->periode_ujian_id,
+            $request->kelas_id
+        ));
+    }
+
+    /**
+     * Unduh rekap silang sebagai PDF landscape (khusus admin).
+     */
+    public function rekapPdf(Request $request)
+    {
+        if (Gate::denies('admin') && Gate::denies('pengawas')) {
+            abort(403);
+        }
+
+        $request->validate([
+            'periode_ujian_id' => 'required|exists:periode_ujian,id',
+            'kelas_id' => 'required|exists:kelas,id',
+        ]);
+
+        $data = $this->buildRekap(
+            $request->periode_ujian_id,
+            $request->kelas_id
+        );
+        $data['isPdf'] = true;
+
+        $namaKelas = str_replace([' ', '/', '\\'], '_', $data['kelas']->nama_kelas);
+        $namaPeriode = str_replace([' ', '/', '\\'], '_', $data['periode']->nama_periode);
+        $filename = "Rekap_{$namaKelas}_{$namaPeriode}_".date('Y-m-d').'.pdf';
+
+        return Pdf::loadView('laporan.rekap', $data)
+            ->setPaper('a4', 'landscape')
+            ->download($filename);
+    }
+
+    /**
+     * Susun matriks nilai: tiap siswa x tiap mapel (periode + setingkat kelas).
+     * Tak ikut = 0. Mapel berjadwal ganda: partisipasi pertama yang dipakai.
+     */
+    private function buildRekap($periodeId, $kelasId)
+    {
+        $periode = PeriodeUjian::findOrFail($periodeId);
+        $kelas = Kelas::findOrFail($kelasId);
+
+        // Mapel yang ada jadwalnya di periode ini + setingkat kelas +
+        // sekompetensi kelas. Mapel UMUM (tanpa kompetensi) tampil untuk semua.
+        // Ini mencegah hasil mapel TKJ bocor ke rekap anak TKR dan sebaliknya.
+        $mapelQuery = DB::table('mapel')
+            ->join('jadwal', 'jadwal.mapel_id', '=', 'mapel.id')
+            ->where('jadwal.periode_ujian_id', $periodeId)
+            ->where('mapel.tingkat_id', $kelas->tingkat_id)
+            ->where(function ($query) use ($kelas) {
+                $query->whereNull('mapel.kompetensi_keahlian_id')
+                    ->orWhere('mapel.kompetensi_keahlian_id', $kelas->kompetensi_keahlian_id);
+            });
+
+        $mapels = $mapelQuery
+            ->select('mapel.id', 'mapel.nama_mapel')
+            ->distinct()
+            ->orderBy('mapel.nama_mapel')
+            ->get();
+
+        $jadwalPerMapel = DB::table('jadwal')
+            ->where('periode_ujian_id', $periodeId)
+            ->whereIn('mapel_id', $mapels->pluck('id'))
+            ->orderBy('id')
+            ->get(['id', 'mapel_id'])
+            ->groupBy('mapel_id');
+
+        $siswas = DB::table('siswa')
+            ->join('users', 'users.id', '=', 'siswa.user_id')
+            ->where('siswa.kelas_id', $kelasId)
+            ->select('users.id as user_id', 'siswa.nis', 'siswa.nisn', 'users.nama as nama_siswa')
+            ->orderBy('users.nama')
+            ->get();
+
+        $userIds = $siswas->pluck('user_id')->all();
+        $jadwalIds = $jadwalPerMapel->collapse()->pluck('id')->unique()->values()->all();
+
+        $totalSoalPerJadwal = $this->getTotalSoalPerJadwal($jadwalIds);
+        $agregatMap = $this->getProgresAgregat($userIds, $jadwalIds);
+
+        $ikut = [];
+        if (! empty($userIds) && ! empty($jadwalIds)) {
+            $partisipasi = DB::table('ujian_siswa')
+                ->whereIn('user_id', $userIds)
+                ->whereIn('jadwal_id', $jadwalIds)
+                ->select('user_id', 'jadwal_id')
+                ->get();
+
+            foreach ($partisipasi as $p) {
+                $ikut[$p->user_id.'_'.$p->jadwal_id] = true;
+            }
+        }
+
+        $rows = $siswas->map(function ($siswa, $index) use ($mapels, $jadwalPerMapel, $totalSoalPerJadwal, $agregatMap, $ikut) {
+            $nilai = [];
+
+            foreach ($mapels as $mapel) {
+                $skor = 0;
+
+                foreach ($jadwalPerMapel->get($mapel->id, []) as $jadwal) {
+                    if (! isset($ikut[$siswa->user_id.'_'.$jadwal->id])) {
+                        continue;
+                    }
+
+                    $total = (int) ($totalSoalPerJadwal[$jadwal->id] ?? 0);
+                    $stat = $agregatMap[$siswa->user_id.'_'.$jadwal->id] ?? null;
+                    $benar = (int) ($stat->benar ?? 0);
+                    $skor = $total > 0 ? round(($benar / $total) * 100, 2) : 0;
+
+                    break;
+                }
+
+                $nilai[$mapel->id] = $skor;
+            }
+
+            return [
+                'no' => $index + 1,
+                'nis' => $siswa->nis,
+                'nisn' => $siswa->nisn,
+                'nama' => $siswa->nama_siswa,
+                'nilai' => $nilai,
+                'rata' => count($nilai) > 0 ? round(array_sum($nilai) / count($nilai), 1) : 0,
+            ];
+        });
+
+        return [
+            'periode' => $periode,
+            'kelas' => $kelas,
+            'mapels' => $mapels,
+            'rows' => $rows,
+            // Logo kop: pakai file lokal agar bisa dibaca dompdf.
+            // Logo kiri (Dikdasmen) belum ada file-nya -> sel kosong otomatis.
+            'logoKiri' => public_path('assets/img/dikdasmen.png'),
+            'logoKanan' => public_path('assets/img/logo.png'),
+        ];
     }
 
     private function datatable(Request $request)
