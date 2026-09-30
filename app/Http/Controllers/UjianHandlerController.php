@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\Jadwal;
 use App\Models\Kelas;
 use App\Models\Mapel;
-use App\Models\Jadwal;
-use App\Models\UjianSiswa;
+use Illuminate\Contracts\Support\Renderable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UjianHandlerController extends Controller
 {
@@ -25,7 +25,7 @@ class UjianHandlerController extends Controller
      * Tampilkan daftar soal untuk suatu mapel.
      *
      * @param  int  $mapel_id
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return Renderable
      */
     public function index(Request $request)
     {
@@ -53,8 +53,7 @@ class UjianHandlerController extends Controller
                     ->orWhere('siswa.nis', 'like', "%{$search}%")
                     ->orWhere('kelas.nama_kelas', 'like', "%{$search}%")
                     ->orWhere('mapel.nama_mapel', 'like', "%{$search}%")
-                    ->orWhere('ujian_siswa.status', 'like', "%{$search}%")
-                    ->orWhere('jadwal.token', 'like', "%{$search}%");
+                    ->orWhere('ujian_siswa.status', 'like', "%{$search}%");
             });
         }
 
@@ -67,13 +66,12 @@ class UjianHandlerController extends Controller
             4 => 'ujian_siswa.status',
             5 => 'ujian_siswa.pelanggaran',
             6 => 'ujian_siswa.mulai_ujian',
-            7 => 'jadwal.token',
         ];
 
         $orderColumnIndex = intval($request->input('order.0.column', 1));
         $orderDirection = $request->input('order.0.dir', 'asc');
 
-        if (!in_array($orderDirection, ['asc', 'desc'])) {
+        if (! in_array($orderDirection, ['asc', 'desc'])) {
             $orderDirection = 'asc';
         }
 
@@ -101,9 +99,8 @@ class UjianHandlerController extends Controller
                     'pelanggaran' => $p->pelanggaran,
                     'mulai_ujian' => $p->mulai_ujian ? date('d-m-Y H:i', strtotime($p->mulai_ujian)) : '-',
                     'selesai_ujian' => $p->selesai_ujian ? date('d-m-Y H:i', strtotime($p->selesai_ujian)) : '-',
-                    'token_jadwal' => $p->token_jadwal,
                     'tanggal_ujian' => $p->tanggal_ujian ? date('d-m-Y', strtotime($p->tanggal_ujian)) : '-',
-                    'jam_ujian' => $p->jam_mulai . ' - ' . $p->jam_selesai,
+                    'jam_ujian' => $p->jam_mulai.' - '.$p->jam_selesai,
                 ];
             });
 
@@ -133,7 +130,6 @@ class UjianHandlerController extends Controller
                 'ujian_siswa.pelanggaran',
                 'ujian_siswa.mulai_ujian',
                 'ujian_siswa.selesai_ujian',
-                'jadwal.token as token_jadwal',
                 'jadwal.tanggal_ujian',
                 'jadwal.jam_mulai',
                 'jadwal.jam_selesai',

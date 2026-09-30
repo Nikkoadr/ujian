@@ -3,27 +3,23 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithCustomStartCell;
-
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class LaporanUjianExport implements
-    FromCollection,
-    WithHeadings,
-    WithMapping,
-    WithColumnFormatting,
-    ShouldAutoSize,
-    WithStyles,
-    WithCustomStartCell
+class LaporanUjianExport implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithCustomStartCell, WithHeadings, WithMapping, WithStrictNullComparison, WithStyles
 {
+    // WithStrictNullComparison wajib: tanpa ini PhpSpreadsheet membuang nilai 0
+    // (perbandingan longgar: 0 == null) sehingga nilai 0 tertulis KOSONG di Excel.
     protected $results;
+
     protected $judul;
 
     public function __construct($results, $judul)
@@ -56,11 +52,12 @@ class LaporanUjianExport implements
     public function map($res): array
     {
         return [
-            "'" . $res->nis,
-            "'" . $res->nisn,
+            "'".$res->nis,
+            "'".$res->nisn,
             $res->nama_siswa,
             $res->nama_kelas,
-            number_format($res->nilai, 1, ',', '.'),
+            // Angka asli (bukan teks) agar bisa di-SUM/AVERAGE di Excel.
+            (float) round($res->nilai, 1),
         ];
     }
 
@@ -69,6 +66,7 @@ class LaporanUjianExport implements
         return [
             'A' => NumberFormat::FORMAT_TEXT,
             'B' => NumberFormat::FORMAT_TEXT,
+            'E' => '0.0',
         ];
     }
 

@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Laporan Harian Hasil Ujian')
+@section('title', 'Laporan Ujian')
 
 @section('content')
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Laporan Hasil Ujian Hari Ini</h1>
-            <p class="text-muted small mb-0">
+            <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Laporan Hasil Ujian</h1>
+            <p class="text-muted small mb-0" id="laporanSubtitle">
                 Menampilkan siswa dan mapel yang dikerjakan pada tanggal {{ date('d-m-Y') }}.
             </p>
         </div>
@@ -16,8 +16,24 @@
         </button>
     </div>
 
+    @if(session('error'))
+        <div class="alert alert-danger border-0 shadow-sm" role="alert">
+            <i class="fas fa-exclamation-circle mr-1"></i> {{ session('error') }}
+        </div>
+    @endif
+
     <div class="card shadow mb-4">
         <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <select id="filterPeriode" class="form-control font-weight-bold" style="border-radius: 10px;">
+                        <option value="">Hari Ini ({{ date('d-m-Y') }})</option>
+                        @foreach($periodes as $p)
+                            <option value="{{ $p->id }}">Periode: {{ $p->nama_periode }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover table-bordered" id="dataTable" width="100%" cellspacing="0">
                     <thead class="thead-light">
@@ -50,26 +66,29 @@
 
             <div class="modal-body">
                 <p class="small text-muted">
-                    Pilih mata pelajaran dan kelas yang ingin diunduh nilainya untuk hari ini.
+                    Pilih periode, mata pelajaran, dan kelas yang ingin diunduh nilainya.
                 </p>
 
                 <div class="form-group">
-                    <label class="small font-weight-bold">Mata Pelajaran</label>
-                    <select name="mapel_id" class="form-control" required>
-                        <option value="">-- Pilih Mata Pelajaran --</option>
-                        @foreach($mapel as $m)
-                            <option value="{{ $m->id }}">{{ $m->nama_mapel }}</option>
+                    <label class="small font-weight-bold">Periode Ujian</label>
+                    <select name="periode_ujian_id" id="exportPeriode" class="form-control" required>
+                        @foreach($periodes as $p)
+                            <option value="{{ $p->id }}" {{ $p->is_active ? 'selected' : '' }}>{{ $p->nama_periode }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 <div class="form-group">
+                    <label class="small font-weight-bold">Mata Pelajaran</label>
+                    <select name="mapel_id" id="exportMapel" class="form-control" required>
+                        <option value="">-- Pilih Periode Dulu --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label class="small font-weight-bold">Kelas</label>
-                    <select name="kelas_id" class="form-control" required>
-                        <option value="">-- Pilih Kelas --</option>
-                        @foreach($kelas as $k)
-                            <option value="{{ $k->id }}">{{ $k->nama_kelas }}</option>
-                        @endforeach
+                    <select name="kelas_id" id="exportKelas" class="form-control" required>
+                        <option value="">-- Pilih Mapel Dulu --</option>
                     </select>
                 </div>
             </div>
@@ -142,7 +161,10 @@ $(document).ready(function () {
 
         ajax: {
             url: "{{ route('laporan.index') }}",
-            type: "GET"
+            type: "GET",
+            data: function (d) {
+                d.periode_ujian_id = $('#filterPeriode').val();
+            }
         },
 
         columns: [
@@ -260,6 +282,74 @@ $(document).ready(function () {
             }
         }
     });
+
+    // Dropdown berantai: Periode -> Mapel (yang ada jadwalnya) -> Kelas (yang relevan).
+    function loadExportMapel(periodeId) {
+        const $mapel = $('#exportMapel');
+        const $kelas = $('#exportKelas');
+        $mapel.html('<option value="">Memuat mapel...</option>');
+        $kelas.html('<option value="">-- Pilih Mapel Dulu --</option>');
+
+        if (!periodeId) {
+            $mapel.html('<option value="">-- Pilih Periode Dulu --</option>');
+            return;
+        }
+
+        $.getJSON("{{ route('laporan.mapel') }}", { periode_ujian_id: periodeId })
+            .done(function (list) {
+                let html = '<option value="">-- Pilih Mata Pelajaran --</option>';
+                list.forEach(function (m) {
+                    html += `<option value="${m.id}">${m.nama_mapel}</option>`;
+                });
+                $mapel.html(html);
+            })
+            .fail(function () {
+                $mapel.html('<option value="">Gagal memuat mapel</option>');
+            });
+    }
+
+    function loadExportKelas(mapelId) {
+        const $kelas = $('#exportKelas');
+        $kelas.html('<option value="">Memuat kelas...</option>');
+
+        if (!mapelId) {
+            $kelas.html('<option value="">-- Pilih Mapel Dulu --</option>');
+            return;
+        }
+
+        $.getJSON("{{ route('laporan.kelas') }}", { mapel_id: mapelId })
+            .done(function (list) {
+                let html = '<option value="">-- Pilih Kelas --</option>';
+                list.forEach(function (k) {
+                    html += `<option value="${k.id}">${k.nama_kelas}</option>`;
+                });
+                $kelas.html(html);
+            })
+            .fail(function () {
+                $kelas.html('<option value="">Gagal memuat kelas</option>');
+            });
+    }
+
+    $('#filterPeriode').on('change', function () {
+        const nama = $(this).find('option:selected').text();
+        if ($(this).val()) {
+            $('#laporanSubtitle').text('Menampilkan riwayat laporan pada ' + nama + '.');
+        } else {
+            $('#laporanSubtitle').text('Menampilkan siswa dan mapel yang dikerjakan pada tanggal {{ date('d-m-Y') }}.');
+        }
+        $('#dataTable').DataTable().ajax.reload();
+    });
+
+    $('#exportPeriode').on('change', function () {
+        loadExportMapel($(this).val());
+    });
+
+    $('#exportMapel').on('change', function () {
+        loadExportKelas($(this).val());
+    });
+
+    // Isi awal mengikuti periode terpilih (default: yang aktif).
+    loadExportMapel($('#exportPeriode').val());
 });
 </script>
 @endpush

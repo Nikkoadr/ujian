@@ -16,7 +16,7 @@
             <div>
                 <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Laporan Ujian</h1>
                 <p class="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">
-                    Hari ini, {{ date('d M Y') }}
+                    <span id="periodeLabel">Hari ini, {{ date('d M Y') }}</span>
                 </p>
             </div>
 
@@ -33,6 +33,16 @@
                 id="searchInput"
                 placeholder="Cari nama siswa, NIS, atau kelas..."
                 class="w-full h-12 bg-slate-100 border border-slate-200 rounded-2xl pl-11 pr-4 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white">
+        </div>
+
+        <div class="mt-3">
+            <select id="filterPeriode"
+                class="w-full h-12 bg-slate-100 border border-slate-200 rounded-2xl px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white">
+                <option value="">Hari Ini ({{ date('d-m-Y') }})</option>
+                @foreach($periodes as $p)
+                    <option value="{{ $p->id }}">Periode: {{ $p->nama_periode }}</option>
+                @endforeach
+            </select>
         </div>
     </div>
 
@@ -65,28 +75,38 @@
 
             <div class="p-5 space-y-4">
                 <p class="text-xs text-slate-500 font-semibold">
-                    Pilih mapel dan kelas untuk download nilai hari ini.
+                    Pilih periode, mapel, dan kelas untuk download nilai.
                 </p>
 
+                @if(session('error'))
+                    <div class="bg-rose-50 text-rose-600 p-4 rounded-2xl text-xs font-bold">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
                 <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Mata Pelajaran</label>
-                    <select name="mapel_id" required
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Periode Ujian</label>
+                    <select name="periode_ujian_id" id="mExportPeriode" required
                         class="w-full h-12 bg-white border border-slate-200 rounded-2xl px-4 text-sm font-bold outline-none">
-                        <option value="">-- Pilih Mata Pelajaran --</option>
-                        @foreach($mapel as $m)
-                            <option value="{{ $m->id }}">{{ $m->nama_mapel }}</option>
+                        @foreach($periodes as $p)
+                            <option value="{{ $p->id }}" {{ $p->is_active ? 'selected' : '' }}>{{ $p->nama_periode }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Kelas</label>
-                    <select name="kelas_id" required
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Mata Pelajaran</label>
+                    <select name="mapel_id" id="mExportMapel" required
                         class="w-full h-12 bg-white border border-slate-200 rounded-2xl px-4 text-sm font-bold outline-none">
-                        <option value="">-- Pilih Kelas --</option>
-                        @foreach($kelas as $k)
-                            <option value="{{ $k->id }}">{{ $k->nama_kelas }}</option>
-                        @endforeach
+                        <option value="">-- Pilih Periode Dulu --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Kelas</label>
+                    <select name="kelas_id" id="mExportKelas" required
+                        class="w-full h-12 bg-white border border-slate-200 rounded-2xl px-4 text-sm font-bold outline-none">
+                        <option value="">-- Pilih Mapel Dulu --</option>
                     </select>
                 </div>
             </div>
@@ -232,6 +252,7 @@ async function loadData(reset = false) {
     document.getElementById('loadMoreBtn').classList.add('hidden');
 
     let search = document.getElementById('searchInput').value || '';
+    let periode = document.getElementById('filterPeriode').value || '';
 
     let params = new URLSearchParams();
     params.append('draw', draw);
@@ -240,6 +261,9 @@ async function loadData(reset = false) {
     params.append('search[value]', search);
     params.append('order[0][column]', 0);
     params.append('order[0][dir]', 'asc');
+    if (periode) {
+        params.append('periode_ujian_id', periode);
+    }
 
     try {
         let response = await fetch(`{{ route('laporan.index') }}?${params.toString()}`, {
@@ -264,7 +288,7 @@ async function loadData(reset = false) {
                         </div>
                         <h3 class="text-slate-900 font-bold">Tidak ada data</h3>
                         <p class="text-slate-400 text-xs px-10 mt-1">
-                            Belum ada siswa yang mengerjakan ujian hari ini.
+                            Belum ada data pada filter yang dipilih.
                         </p>
                     </div>
                 `;
@@ -301,9 +325,56 @@ async function loadData(reset = false) {
     }
 }
 
+async function loadExportMapel(periodeId) {
+    const mapelSel = document.getElementById('mExportMapel');
+    const kelasSel = document.getElementById('mExportKelas');
+    mapelSel.innerHTML = '<option value="">Memuat mapel...</option>';
+    kelasSel.innerHTML = '<option value="">-- Pilih Mapel Dulu --</option>';
+
+    if (!periodeId) {
+        mapelSel.innerHTML = '<option value="">-- Pilih Periode Dulu --</option>';
+        return;
+    }
+
+    try {
+        const res = await fetch("{{ route('laporan.mapel') }}?periode_ujian_id=" + encodeURIComponent(periodeId));
+        const list = await res.json();
+        let html = '<option value="">-- Pilih Mata Pelajaran --</option>';
+        list.forEach(function (m) {
+            html += `<option value="${m.id}">${m.nama_mapel}</option>`;
+        });
+        mapelSel.innerHTML = html;
+    } catch (e) {
+        mapelSel.innerHTML = '<option value="">Gagal memuat mapel</option>';
+    }
+}
+
+async function loadExportKelas(mapelId) {
+    const kelasSel = document.getElementById('mExportKelas');
+    kelasSel.innerHTML = '<option value="">Memuat kelas...</option>';
+
+    if (!mapelId) {
+        kelasSel.innerHTML = '<option value="">-- Pilih Mapel Dulu --</option>';
+        return;
+    }
+
+    try {
+        const res = await fetch("{{ route('laporan.kelas') }}?mapel_id=" + encodeURIComponent(mapelId));
+        const list = await res.json();
+        let html = '<option value="">-- Pilih Kelas --</option>';
+        list.forEach(function (k) {
+            html += `<option value="${k.id}">${k.nama_kelas}</option>`;
+        });
+        kelasSel.innerHTML = html;
+    } catch (e) {
+        kelasSel.innerHTML = '<option value="">Gagal memuat kelas</option>';
+    }
+}
+
 function openModalExport() {
     document.getElementById('modalExport').classList.remove('hidden');
     document.getElementById('modalExport').classList.add('flex');
+    loadExportMapel(document.getElementById('mExportPeriode').value);
 }
 
 function closeModalExport() {
@@ -321,6 +392,20 @@ document.getElementById('searchInput').addEventListener('input', function () {
 
 document.addEventListener('DOMContentLoaded', function () {
     loadData(true);
+
+    document.getElementById('filterPeriode').addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        document.getElementById('periodeLabel').textContent = this.value ? opt.text : "Hari ini, {{ date('d M Y') }}";
+        loadData(true);
+    });
+
+    document.getElementById('mExportPeriode').addEventListener('change', function () {
+        loadExportMapel(this.value);
+    });
+
+    document.getElementById('mExportMapel').addEventListener('change', function () {
+        loadExportKelas(this.value);
+    });
 });
 </script>
 @endsection

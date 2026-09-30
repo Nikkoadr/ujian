@@ -104,7 +104,6 @@
                             <th class="text-center" width="8%">Pelanggaran</th>
                             <th class="text-center" width="12%">Mulai Ujian</th>
                             <th class="text-center" width="12%">Selesai Ujian</th>
-                            <th class="text-center" width="10%">Token</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -260,13 +259,6 @@ $(document).ready(function () {
             {
                 data: 'selesai_ujian',
                 className: 'text-center small'
-            },
-            {
-                data: 'token_jadwal',
-                className: 'text-center',
-                render: function (data) {
-                    return `<code class="small">${data}</code>`;
-                }
             }
         ],
         language: {

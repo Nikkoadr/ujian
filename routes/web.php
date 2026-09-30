@@ -77,6 +77,8 @@ Route::post('/token/refresh', [TokenController::class, 'refreshToken'])->name('t
 Route::post('/ujian/validasi', [TokenController::class, 'validasiToken'])->name('ujian.validasi');
 
 Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+Route::get('/laporan/mapel', [LaporanController::class, 'mapelByPeriode'])->name('laporan.mapel');
+Route::get('/laporan/kelas', [LaporanController::class, 'kelasByMapel'])->name('laporan.kelas');
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
 
 Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
