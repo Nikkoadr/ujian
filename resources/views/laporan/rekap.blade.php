@@ -25,12 +25,11 @@
         table.nilai { width: 100%; border-collapse: collapse; table-layout: fixed; page-break-inside: auto; }
         table.nilai thead { display: table-header-group; }
         table.nilai tr { page-break-inside: avoid; }
-        table.nilai th, table.nilai td { border: 1px solid #444; padding: 3px 2px; overflow: hidden; }
-        table.nilai th { background: #e5e7eb; font-size: 7pt; word-break: break-word; }
-        table.nilai td { font-size: 7.5pt; word-break: break-word; }
+        table.nilai th, table.nilai td { border: 1px solid #444; padding: 3px 4px; overflow: hidden; }
+        table.nilai th { background: #e5e7eb; font-size: 8pt; word-break: break-word; }
+        table.nilai td { font-size: 8pt; word-break: break-word; }
         td.num { text-align: center; }
         td.nama { text-align: left; }
-        tfoot td { font-weight: bold; background: #f3f4f6; }
         .toolbar { margin: 12px; text-align: right; }
         .toolbar button { padding: 8px 18px; font-size: 13px; font-weight: bold; border: none; border-radius: 8px; background: #0284c7; color: #fff; cursor: pointer; }
         .ket { margin-top: 8px; font-size: 8pt; color: #555; }
@@ -111,7 +110,7 @@
             @foreach($mapels as $mapel)
                 <col>
             @endforeach
-            <col style="width:36px;">
+            <col style="width:40px;">
         </colgroup>
         <thead>
             <tr>
@@ -145,6 +144,6 @@
         </tbody>
     </table>
 
-    <div class="ket">Keterangan: nilai 0 berarti siswa tidak/belum mengerjakan mapel tersebut. Rata2 = rata-rata seluruh kolom mapel.</div>
+    <div class="ket">Keterangan: nilai 0 berarti siswa tidak/belum mengerjakan mapel tersebut.</div>
 </body>
 </html>

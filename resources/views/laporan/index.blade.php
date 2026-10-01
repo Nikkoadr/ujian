@@ -11,12 +11,14 @@
             </p>
         </div>
 
-        <button type="button" class="btn btn-sm btn-info shadow-sm mr-2" data-toggle="modal" data-target="#modalRekapPdf">
-            <i class="fas fa-file-pdf fa-sm text-white-50 mr-1"></i> Rekap PDF
-        </button>
-        <button type="button" class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#modalExportExcel">
-            <i class="fas fa-file-excel fa-sm text-white-50 mr-1"></i> Download Excel
-        </button>
+        <div class="d-flex">
+            <button type="button" class="btn btn-sm btn-info shadow-sm mr-2" data-toggle="modal" data-target="#modalRekapPdf">
+                <i class="fas fa-file-pdf fa-sm text-white-50 mr-1"></i> Rekap Perkelas
+            </button>
+            <button type="button" class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#modalExportExcel">
+                <i class="fas fa-file-excel fa-sm text-white-50 mr-1"></i> Download Permapel
+            </button>
+        </div>
     </div>
 
     @if(session('error'))
