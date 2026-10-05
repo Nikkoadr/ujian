@@ -11,6 +11,11 @@
                 <span class="small font-weight-bold text-dark text-truncate pr-2">
                     {{ Str::limit(strip_tags($item->pertanyaan), 55) }}
                 </span>
+                @if($item->jawaban->where('jawaban_benar', true)->isEmpty())
+                    <span class="badge badge-danger ml-2" title="Soal ini belum punya kunci jawaban dan tidak bisa dinilai">
+                        <i class="fas fa-key mr-1"></i>Tanpa Kunci
+                    </span>
+                @endif
             </div>
             <i class="fas fa-chevron-down text-muted"
                style="font-size:10px"></i>

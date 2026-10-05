@@ -103,7 +103,13 @@
 
                 <!-- JAWABAN -->
                 <div class="mb-4">
-                    <label class="section-title mb-3">Pilihan Jawaban</label>
+                    <label class="section-title mb-3">Pilihan Jawaban <small class="text-muted">(kunci jawaban wajib dipilih)</small></label>
+
+                    @error('kunci_jawaban')
+                        <div class="alert alert-danger border-0 shadow-sm py-2 px-3 small mb-3">
+                            <i class="fas fa-exclamation-circle mr-1"></i> {{ $message }}
+                        </div>
+                    @enderror
 
                     @foreach($soal->jawaban as $i => $jw)
                     <div class="edit-jw-card shadow-sm mb-4">

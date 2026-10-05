@@ -104,6 +104,15 @@
         </a>
     </li>
 
+    @if(Gate::allows('admin'))
+    <li class="nav-item {{ request()->routeIs('laporan.individu*') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('laporan.individu') }}">
+            <i class="fas fa-fw fa-print"></i>
+            <span>Cetak Laporan</span>
+        </a>
+    </li>
+    @endif
+
     <hr class="sidebar-divider d-none d-md-block">
 
     <li class="nav-item {{ request()->routeIs('setting.index') ? 'active' : '' }}">

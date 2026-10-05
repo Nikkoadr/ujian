@@ -12,5 +12,10 @@ class Setting extends Model
         'max_pelanggaran',
         'max_tombol_selesai',
         'anti_nyontek',
+        'nama_sekolah',
+        'alamat_sekolah',
+        'nama_kepala_sekolah',
+        'nama_wakakurikulum',
+        'ttd_kepala_sekolah',
     ];
 }

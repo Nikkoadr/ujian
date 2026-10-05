@@ -68,7 +68,7 @@
                     </div>
                 </div>
 
-                <form action="{{ route('setting.update') }}" method="POST">
+                <form action="{{ route('setting.update') }}" method="POST" enctype="multipart/form-data">
                     @csrf
 
                     <div class="card-body px-5 py-4">
@@ -203,6 +203,104 @@
 
                         </div>
 
+                        {{-- PROFIL SEKOLAH --}}
+                        <div class="setting-box mb-4">
+
+                            <label class="font-weight-bold text-dark d-block mb-1">
+                                Profil Sekolah
+                            </label>
+
+                            <small class="text-muted d-block mb-3">
+                                Dipakai pada kop dan tanda tangan laporan/rapor.
+                            </small>
+
+                            <div class="row">
+                                <div class="col-md-6 form-group">
+                                    <label class="small font-weight-bold text-dark">Nama Sekolah</label>
+                                    <input
+                                        type="text"
+                                        name="nama_sekolah"
+                                        value="{{ old('nama_sekolah', $setting->nama_sekolah ?? '') }}"
+                                        class="form-control @error('nama_sekolah') is-invalid @enderror"
+                                        placeholder="SMK Muhammadiyah Kandanghaur"
+                                        maxlength="255"
+                                    >
+                                    @error('nama_sekolah') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+
+                                <div class="col-md-6 form-group">
+                                    <label class="small font-weight-bold text-dark">Alamat Sekolah</label>
+                                    <input
+                                        type="text"
+                                        name="alamat_sekolah"
+                                        value="{{ old('alamat_sekolah', $setting->alamat_sekolah ?? '') }}"
+                                        class="form-control @error('alamat_sekolah') is-invalid @enderror"
+                                        placeholder="Jl. ..."
+                                        maxlength="255"
+                                    >
+                                    @error('alamat_sekolah') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 form-group mb-md-0">
+                                    <label class="small font-weight-bold text-dark">Nama Kepala Sekolah</label>
+                                    <input
+                                        type="text"
+                                        name="nama_kepala_sekolah"
+                                        value="{{ old('nama_kepala_sekolah', $setting->nama_kepala_sekolah ?? '') }}"
+                                        class="form-control @error('nama_kepala_sekolah') is-invalid @enderror"
+                                        placeholder="H. ..., S.Pd., M.Ed"
+                                        maxlength="255"
+                                    >
+                                    @error('nama_kepala_sekolah') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+
+                                <div class="col-md-6 form-group mb-0">
+                                    <label class="small font-weight-bold text-dark">Nama Wakil Kurikulum</label>
+                                    <input
+                                        type="text"
+                                        name="nama_wakakurikulum"
+                                        value="{{ old('nama_wakakurikulum', $setting->nama_wakakurikulum ?? '') }}"
+                                        class="form-control @error('nama_wakakurikulum') is-invalid @enderror"
+                                        placeholder="H. ..., M.Pd"
+                                        maxlength="255"
+                                    >
+                                    @error('nama_wakakurikulum') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6 form-group mb-md-0">
+                                    <label class="small font-weight-bold text-dark">Tanda Tangan Kepala Sekolah <span class="text-muted font-weight-normal">(PNG/JPG, maks 2MB)</span></label>
+                                    <div class="custom-file">
+                                        <input
+                                            type="file"
+                                            name="ttd_kepala_sekolah"
+                                            accept="image/png,image/jpeg"
+                                            class="custom-file-input @error('ttd_kepala_sekolah') is-invalid @enderror"
+                                            id="ttdKepsek"
+                                        >
+                                        <label class="custom-file-label" for="ttdKepsek" style="border-radius:12px;">Pilih file...</label>
+                                    </div>
+                                    @error('ttd_kepala_sekolah') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    <small class="text-muted">Biarkan kosong jika tidak diganti.</small>
+                                </div>
+
+                                <div class="col-md-6 form-group mb-0">
+                                    <label class="small font-weight-bold text-dark">Pratinjau</label>
+                                    <div class="border rounded p-2 bg-light text-center" style="min-height:90px;">
+                                        @if(! empty($setting->ttd_kepala_sekolah))
+                                            <img src="{{ Storage::disk('r2')->url($setting->ttd_kepala_sekolah) }}" alt="TTD" style="max-height:80px;">
+                                        @else
+                                            <small class="text-muted">Belum ada file TTD.</small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
                         {{-- INFO --}}
                         <div class="alert alert-primary border-0 shadow-sm mb-0"
                              style="border-radius:16px;">
@@ -255,6 +353,17 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.getElementById('ttdKepsek')?.addEventListener('change', function () {
+        const label = this.nextElementSibling;
+        if (label && this.files.length > 0) {
+            label.textContent = this.files[0].name;
+        }
+    });
+</script>
+@endpush
 
 @push('styles')
 <style>

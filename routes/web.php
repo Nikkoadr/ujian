@@ -48,6 +48,7 @@ Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::resource('jadwal-ujian', JadwalUjianController::class);
 Route::post('/jadwal-ujian/import', [JadwalUjianController::class, 'import'])->name('jadwal-ujian.import');
 Route::post('/jadwal-ujian/destroy-multiple', [JadwalUjianController::class, 'destroyMultiple'])->name('jadwal-ujian.destroy-multiple');
+Route::post('guru/import', [GuruController::class, 'import'])->name('guru.import');
 Route::resource('guru', GuruController::class);
 Route::resource('kelas', KelasController::class);
 
@@ -82,6 +83,8 @@ Route::get('/laporan/kelas', [LaporanController::class, 'kelasByMapel'])->name('
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
 Route::get('/laporan/rekap', [LaporanController::class, 'rekap'])->name('laporan.rekap');
 Route::get('/laporan/rekap-pdf', [LaporanController::class, 'rekapPdf'])->name('laporan.rekap-pdf');
+Route::get('/laporan/individu', [LaporanController::class, 'individu'])->name('laporan.individu');
+Route::get('/laporan/individu/cetak', [LaporanController::class, 'individuCetak'])->name('laporan.individu.cetak');
 
 Route::post('/siswa/toggle/{id}', [SiswaController::class, 'toggleStatus'])->name('siswa.toggle');
 

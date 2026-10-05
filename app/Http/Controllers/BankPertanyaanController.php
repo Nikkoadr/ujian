@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BankPertanyaan;
 use App\Models\BankJawaban;
+use App\Models\BankPertanyaan;
 use App\Models\Mapel;
+use Illuminate\Contracts\Support\Renderable;
+use Illuminate\Http\File;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class BankPertanyaanController extends Controller
 {
@@ -26,7 +31,7 @@ class BankPertanyaanController extends Controller
      * Tampilkan daftar soal untuk suatu mapel.
      *
      * @param  int  $mapel_id
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return Renderable
      */
     public function index($mapel_id)
     {
@@ -35,27 +40,39 @@ class BankPertanyaanController extends Controller
             ->where('mapel_id', $mapel_id)
             ->orderBy('created_at', 'asc')
             ->paginate(60);
+
         return view('mapel.bank_pertanyaan', compact('mapel', 'bank_pertanyaan'));
     }
 
     /**
      * Simpan soal baru beserta jawaban pilihan ganda.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  int  $mapel_id
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function store(Request $request, $mapel_id)
     {
         $request->validate([
-            'pertanyaan'    => 'required',
-            'jenis_soal'    => 'required|in:pg,essay',
-            'jawaban'       => 'nullable|array',
-            'kunci_jawaban' => 'nullable',
+            'pertanyaan' => 'required',
+            'jenis_soal' => 'required|in:pg,essay',
+            'jawaban' => 'nullable|array',
+            // Kunci jawaban WAJIB agar nilai bisa dihitung.
+            'kunci_jawaban' => 'required',
+        ], [
+            'kunci_jawaban.required' => 'Kunci jawaban wajib dipilih (klik salah satu lingkaran A-E).',
         ]);
 
+        // Kunci yang dipilih harus berisi teks jawaban (bukan opsi kosong).
+        $teksKunci = trim(strip_tags((string) ($request->jawaban[$request->kunci_jawaban] ?? '')));
+
+        if ($teksKunci === '') {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['kunci_jawaban' => 'Opsi yang dijadikan kunci masih kosong. Isi dulu teks jawabannya.']);
+        }
+
         // Buat soal
-        $soal = new BankPertanyaan();
+        $soal = new BankPertanyaan;
         $soal->mapel_id = $mapel_id;
         $soal->pertanyaan = $request->pertanyaan;
         $soal->jenis_soal = $request->jenis_soal;
@@ -69,7 +86,7 @@ class BankPertanyaanController extends Controller
             $kunciIndex = $request->kunci_jawaban; // index jawaban benar (0..4)
 
             foreach ($request->jawaban as $key => $teks) {
-                $jawaban = new BankJawaban();
+                $jawaban = new BankJawaban;
                 $jawaban->bank_pertanyaan_id = $soal->id;
                 $jawaban->urutan = $key + 1; // urutan 1..5
                 $jawaban->teks_jawaban = $teks;
@@ -97,26 +114,34 @@ class BankPertanyaanController extends Controller
      * Tampilkan form edit soal.
      *
      * @param  int  $id
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function edit($id)
     {
         $soal = BankPertanyaan::with('jawaban')->findOrFail($id);
+
         return view('mapel.edit_pertanyaan', compact('soal'));
     }
 
     /**
      * Perbarui data soal dan jawaban.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function update(Request $request, $id)
     {
         $request->validate([
             'pertanyaan' => 'required',
-            'jawaban'    => 'nullable|array',
+            'jawaban' => 'nullable|array',
+            // Kunci jawaban WAJIB agar nilai bisa dihitung.
+            'kunci_jawaban' => [
+                'required',
+                Rule::exists('bank_jawaban', 'id')->where('bank_pertanyaan_id', $id),
+            ],
+        ], [
+            'kunci_jawaban.required' => 'Kunci jawaban wajib dipilih.',
+            'kunci_jawaban.exists' => 'Kunci jawaban tidak valid untuk soal ini.',
         ]);
 
         $soal = BankPertanyaan::with('jawaban')->findOrFail($id);
@@ -138,7 +163,7 @@ class BankPertanyaanController extends Controller
                     ->where('id', $jawabanId)
                     ->first();
 
-                if (!$jawaban) {
+                if (! $jawaban) {
                     continue;
                 }
 
@@ -169,8 +194,8 @@ class BankPertanyaanController extends Controller
         return redirect()
             ->route('bank-pertanyaan.index', $soal->mapel_id)
             ->with([
-                'success'   => 'Soal dan Jawaban berhasil diperbarui!',
-                'highlight' => $soal->id
+                'success' => 'Soal dan Jawaban berhasil diperbarui!',
+                'highlight' => $soal->id,
             ]);
     }
 
@@ -178,7 +203,7 @@ class BankPertanyaanController extends Controller
      * Hapus soal beserta jawaban dan gambar terkait.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function destroy($id)
     {
@@ -197,7 +222,7 @@ class BankPertanyaanController extends Controller
 
         // Hapus gambar yang hanya digunakan oleh soal ini
         foreach ($editorImages as $filename) {
-            if (!$this->isEditorImageUsedInDatabase($filename, $soalId)) {
+            if (! $this->isEditorImageUsedInDatabase($filename, $soalId)) {
                 $this->deleteEditorImageFile($filename);
             }
         }
@@ -222,21 +247,21 @@ class BankPertanyaanController extends Controller
         $file = $request->file('file');
         $type = $request->get('type', 'soal');
         $prefix = $type === 'jawaban' ? 'jawaban_' : 'soal_';
-        $filename = uniqid($prefix, true) . '.jpg';
+        $filename = uniqid($prefix, true).'.jpg';
 
         $image = $manager->decode($file->getPathname());
         $image->scaleDown(width: 900);
 
         $folder = storage_path('app/public/dokumen/gambar');
-        if (!file_exists($folder)) {
+        if (! file_exists($folder)) {
             mkdir($folder, 0775, true);
         }
 
-        $path = $folder . '/' . $filename;
+        $path = $folder.'/'.$filename;
         $image->save($path, quality: 45);
 
         // Upload ke R2
-        Storage::disk('r2')->putFileAs('dokumen/gambar', new \Illuminate\Http\File($path), $filename);
+        Storage::disk('r2')->putFileAs('dokumen/gambar', new File($path), $filename);
 
         // Hapus file sementara lokal
         if (file_exists($path)) {
@@ -244,7 +269,7 @@ class BankPertanyaanController extends Controller
         }
 
         return response()->json([
-            'location' => Storage::disk('r2')->url('dokumen/gambar/' . $filename)
+            'location' => Storage::disk('r2')->url('dokumen/gambar/'.$filename),
         ]);
     }
 
@@ -253,8 +278,9 @@ class BankPertanyaanController extends Controller
     private function getEditorImagesFromHtml(?string $html): array
     {
         preg_match_all('/(?:soal_|jawaban_)[a-zA-Z0-9\._\-]+\.jpg/', $html ?? '', $matches);
+
         return collect($matches[0] ?? [])
-            ->map(fn($file) => basename($file))
+            ->map(fn ($file) => basename($file))
             ->unique()
             ->values()
             ->toArray();
@@ -266,12 +292,13 @@ class BankPertanyaanController extends Controller
         foreach ($htmlList as $html) {
             $images = array_merge($images, $this->getEditorImagesFromHtml($html));
         }
+
         return collect($images)->unique()->values()->toArray();
     }
 
     private function deleteEditorImageFile(string $filename): void
     {
-        $r2Path = 'dokumen/gambar/' . $filename;
+        $r2Path = 'dokumen/gambar/'.$filename;
         if (Storage::disk('r2')->exists($r2Path)) {
             Storage::disk('r2')->delete($r2Path);
         }
@@ -281,13 +308,13 @@ class BankPertanyaanController extends Controller
     {
         // Cek di tabel bank_pertanyaan
         $usedInSoal = BankPertanyaan::query()
-            ->when($exceptSoalId, fn($q) => $q->where('id', '!=', $exceptSoalId))
-            ->where('pertanyaan', 'like', '%' . $filename . '%')
+            ->when($exceptSoalId, fn ($q) => $q->where('id', '!=', $exceptSoalId))
+            ->where('pertanyaan', 'like', '%'.$filename.'%')
             ->exists();
 
         // Cek di tabel bank_jawaban
         $usedInJawaban = BankJawaban::query()
-            ->where('teks_jawaban', 'like', '%' . $filename . '%')
+            ->where('teks_jawaban', 'like', '%'.$filename.'%')
             ->exists();
 
         return $usedInSoal || $usedInJawaban;
@@ -300,7 +327,7 @@ class BankPertanyaanController extends Controller
         $deletedImages = array_diff($oldImages, $newImages);
 
         foreach ($deletedImages as $filename) {
-            if (!$this->isEditorImageUsedInDatabase($filename, $soalId)) {
+            if (! $this->isEditorImageUsedInDatabase($filename, $soalId)) {
                 $this->deleteEditorImageFile($filename);
             }
         }
@@ -312,7 +339,7 @@ class BankPertanyaanController extends Controller
 
         foreach ($files as $filePath) {
             $filename = basename($filePath);
-            if (!$this->isEditorImageUsedInDatabase($filename)) {
+            if (! $this->isEditorImageUsedInDatabase($filename)) {
                 Storage::disk('r2')->delete($filePath);
             }
         }

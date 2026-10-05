@@ -7,6 +7,7 @@ use App\Models\Jadwal;
 use App\Models\Kelas;
 use App\Models\Mapel;
 use App\Models\PeriodeUjian;
+use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -193,7 +194,7 @@ class LaporanController extends Controller
             });
 
         $mapels = $mapelQuery
-            ->select('mapel.id', 'mapel.nama_mapel')
+            ->select('mapel.id', 'mapel.nama_mapel', 'mapel.kompetensi_keahlian_id')
             ->distinct()
             ->orderBy('mapel.nama_mapel')
             ->get();
@@ -255,6 +256,7 @@ class LaporanController extends Controller
 
             return [
                 'no' => $index + 1,
+                'user_id' => $siswa->user_id,
                 'nis' => $siswa->nis,
                 'nisn' => $siswa->nisn,
                 'nama' => $siswa->nama_siswa,
@@ -536,6 +538,230 @@ class LaporanController extends Controller
             'total_soal' => $totalSoal,
             'status_label' => $statusLabel,
             'status_color' => $statusColor,
+        ];
+    }
+
+    /**
+     * Halaman pilih siswa untuk cetak rapor individu (khusus admin).
+     */
+    public function individu(Request $request)
+    {
+        if (Gate::denies('admin')) {
+            abort(403);
+        }
+
+        $periodes = PeriodeUjian::orderByDesc('is_active')->orderByDesc('tanggal_mulai')->get();
+        $kelasList = Kelas::orderBy('nama_kelas')->get();
+        $siswas = collect();
+
+        $periodeId = $request->input('periode_ujian_id');
+        $kelasId = $request->input('kelas_id');
+
+        if ($kelasId) {
+            $siswas = DB::table('siswa')
+                ->join('users', 'users.id', '=', 'siswa.user_id')
+                ->join('kelas', 'kelas.id', '=', 'siswa.kelas_id')
+                ->where('siswa.kelas_id', $kelasId)
+                ->select('siswa.id', 'siswa.nis', 'siswa.nisn', 'users.nama as nama_siswa', 'kelas.nama_kelas')
+                ->orderBy('users.nama')
+                ->get();
+        }
+
+        return view('laporan.individu', compact('periodes', 'kelasList', 'siswas', 'periodeId', 'kelasId'));
+    }
+
+    /**
+     * Cetak rapor individu untuk siswa terpilih (khusus admin).
+     */
+    public function individuCetak(Request $request)
+    {
+        if (Gate::denies('admin')) {
+            abort(403);
+        }
+
+        $request->validate([
+            'periode_ujian_id' => 'required|exists:periode_ujian,id',
+            'kelas_id' => 'required|exists:kelas,id',
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:siswa,id',
+        ]);
+
+        $periode = PeriodeUjian::findOrFail($request->periode_ujian_id);
+        $kelas = Kelas::with(['tingkat', 'kompetensi_keahlian', 'waliKelas.user'])->findOrFail($request->kelas_id);
+        $setting = Setting::first();
+
+        // Matriks sekelas dipakai untuk peringkat tiap siswa.
+        $rekap = $this->buildRekap($request->periode_ujian_id, $request->kelas_id);
+        $peringkatMap = $this->peringkatKelas($rekap['rows']);
+
+        $dipilih = collect($request->ids)->map(fn ($id) => (int) $id)->all();
+
+        $rapors = [];
+        foreach ($rekap['rows'] as $row) {
+            $siswaId = DB::table('siswa')->where('user_id', $row['user_id'])->value('id');
+
+            if (! in_array((int) $siswaId, $dipilih, true)) {
+                continue;
+            }
+
+            $rapors[] = $this->buildRapor(
+                $row,
+                $rekap['mapels'],
+                $peringkatMap[$row['user_id']] ?? null
+            );
+        }
+
+        if (empty($rapors)) {
+            return redirect()->route('laporan.individu')->with(
+                'error',
+                'Tidak ada siswa terpilih yang cocok dengan kelas tersebut.'
+            );
+        }
+
+        return view('laporan.individu_cetak', [
+            'rapors' => $rapors,
+            'periode' => $periode,
+            'kelas' => $kelas,
+            'setting' => $setting,
+            'namaWaliKelas' => $kelas->waliKelas ? $kelas->waliKelas->nama_lengkap : null,
+            'identitas' => $this->identitasRapor($periode, $kelas),
+        ]);
+    }
+
+    /**
+     * Peringkat kompetisi sekelas berdasarkan rata2 (sama -> peringkat sama).
+     */
+    private function peringkatKelas($rows)
+    {
+        $peringkat = 0;
+        $terakhir = null;
+        $urutan = 0;
+        $map = [];
+
+        foreach (collect($rows)->sortByDesc('rata')->values() as $row) {
+            $urutan++;
+
+            if ($terakhir === null || $row['rata'] < $terakhir) {
+                $peringkat = $urutan;
+                $terakhir = $row['rata'];
+            }
+
+            $map[$row['user_id']] = $peringkat;
+        }
+
+        return $map;
+    }
+
+    private function buildRapor($row, $mapels, $peringkat)
+    {
+        // Rapor individu: semua mapel yang diujikan tampil satu daftar
+        // tanpa kategori. Akhiran "KELAS n" dibuang (penanda internal).
+        $daftarMapel = [];
+
+        foreach ($mapels as $mapel) {
+            $nilai = (int) round($row['nilai'][$mapel->id] ?? 0);
+            $namaBersih = trim((string) preg_replace('/\s+KELAS\s+\d+\s*$/i', '', $mapel->nama_mapel));
+
+            $daftarMapel[] = [
+                'nama' => $this->namaMapelRapi($namaBersih),
+                'nilai' => $nilai,
+                'predikat' => $this->predikatKata($nilai),
+            ];
+        }
+
+        $kumulatif = (int) round(array_sum($row['nilai']));
+
+        return [
+            'nis' => $row['nis'],
+            'nisn' => $row['nisn'],
+            'nama' => $row['nama'],
+            'daftarMapel' => $daftarMapel,
+            'kumulatif' => $kumulatif,
+            'rata' => (int) round($row['rata']),
+            'predikat' => $this->predikatHuruf((int) round($row['rata'])),
+            'peringkat' => $peringkat,
+        ];
+    }
+
+    /**
+     * "SISTEM KELISTRIKAN OTOMOTIF" -> "Sistem Kelistrikan Otomotif".
+     * Akronim pendek (PAI) dan tanda kurung (PPPEI) dibiarkan apa adanya.
+     */
+    private function namaMapelRapi($nama)
+    {
+        $kata = explode(' ', (string) $nama);
+
+        foreach ($kata as &$k) {
+            if ($k === '' || $k[0] === '(') {
+                continue;
+            }
+
+            if (strlen($k) <= 3 && strtoupper($k) === $k) {
+                continue;
+            }
+
+            $k = ucwords(strtolower($k));
+        }
+
+        return implode(' ', $kata);
+    }
+
+    private function predikatKata($nilai)
+    {
+        if ($nilai >= 90) {
+            return 'Amat Baik';
+        }
+        if ($nilai >= 75) {
+            return 'Baik';
+        }
+        if ($nilai >= 65) {
+            return 'Cukup';
+        }
+
+        return 'Kurang';
+    }
+
+    private function predikatHuruf($rata)
+    {
+        if ($rata >= 95) {
+            return 'A';
+        }
+        if ($rata >= 92) {
+            return 'A-';
+        }
+        if ($rata >= 85) {
+            return 'B+';
+        }
+        if ($rata >= 80) {
+            return 'B';
+        }
+        if ($rata >= 75) {
+            return 'C+';
+        }
+        if ($rata >= 65) {
+            return 'C';
+        }
+        if ($rata >= 55) {
+            return 'D';
+        }
+
+        return 'E';
+    }
+
+    private function identitasRapor($periode, $kelas)
+    {
+        $romawi = ['10' => 'X', '11' => 'XI', '12' => 'XII'];
+        $namaTingkat = $kelas->tingkat->nama_tingkat ?? '';
+
+        $mulai = (int) date('Y', strtotime($periode->tanggal_mulai));
+        $selesai = (int) date('Y', strtotime($periode->tanggal_selesai));
+        $bulanMulai = (int) date('n', strtotime($periode->tanggal_mulai));
+
+        return [
+            'tingkat' => 'Kelas '.($romawi[$namaTingkat] ?? $namaTingkat),
+            'tahun' => $mulai.' / '.$selesai,
+            // Periode mulai Juli-Desember = semester Ganjil.
+            'semester' => $bulanMulai >= 7 ? 'Ganjil' : 'Genap',
         ];
     }
 

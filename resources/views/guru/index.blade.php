@@ -5,9 +5,14 @@
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Manajemen Data Guru</h1>
-        <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahGuru" style="border-radius: 10px; padding: 0.4rem 1rem;">
-            <i class="fas fa-user-plus fa-sm text-white-50 mr-2"></i> Tambah Guru & Akun
-        </button>
+        <div class="d-flex">
+            <button class="btn btn-sm btn-success shadow-sm mr-2" data-toggle="modal" data-target="#modalImportGuru" style="border-radius: 10px; padding: 0.4rem 1rem;">
+                <i class="fas fa-file-import fa-sm text-white-50 mr-2"></i> Import Excel
+            </button>
+            <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahGuru" style="border-radius: 10px; padding: 0.4rem 1rem;">
+                <i class="fas fa-user-plus fa-sm text-white-50 mr-2"></i> Tambah Guru & Akun
+            </button>
+        </div>
     </div>
 
     <div class="card shadow mb-4 border-0" style="border-radius: 15px;">
@@ -32,7 +37,7 @@
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td><span class="badge badge-light border px-2 py-1">{{ $guru->nip }}</span></td>
-                            <td class="font-weight-bold text-primary">{{ $guru->user->nama }}</td>
+                            <td class="font-weight-bold text-primary">{{ $guru->nama_lengkap }}</td>
                             <td>
                                 <i class="fas {{ $guru->user->jenis_kelamin == 'laki-laki' ? 'fa-mars text-primary' : 'fa-venus text-danger' }} mr-1"></i>
                                 {{ ucfirst($guru->user->jenis_kelamin) }}
@@ -75,10 +80,25 @@
                             @error('nip') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6 form-group">
-                            <label class="small font-weight-bold">Nama Lengkap & Gelar</label>
+                            <label class="small font-weight-bold">Nama Lengkap (tanpa gelar)</label>
                             <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror" 
                                 value="{{ old('nama') }}" placeholder="Nama Lengkap" required style="border-radius: 8px;">
                             @error('nama') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="small font-weight-bold">Gelar Depan <span class="text-muted font-weight-normal">(opsional, mis. Dr.)</span></label>
+                            <input type="text" name="gelar_depan" class="form-control @error('gelar_depan') is-invalid @enderror" 
+                                value="{{ old('gelar_depan') }}" placeholder="Dr." maxlength="50" style="border-radius: 8px;">
+                            @error('gelar_depan') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="small font-weight-bold">Gelar Belakang <span class="text-muted font-weight-normal">(opsional, mis. S.Pd.)</span></label>
+                            <input type="text" name="gelar_belakang" class="form-control @error('gelar_belakang') is-invalid @enderror" 
+                                value="{{ old('gelar_belakang') }}" placeholder="S.Pd." maxlength="50" style="border-radius: 8px;">
+                            @error('gelar_belakang') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
 
@@ -126,6 +146,52 @@
         </div>
     </div>
 </div>
+{{-- MODAL IMPORT GURU --}}
+<div class="modal fade" id="modalImportGuru" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title font-weight-bold text-gray-800">
+                    <i class="fas fa-file-excel text-success mr-2"></i>Import Guru dari Excel
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <form action="{{ route('guru.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body px-4">
+                    <a href="{{ asset('assets/format_excel/guru.xlsx') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-download mr-1"></i> Download Format Excel
+                    </a>
+
+                    @if($errors->has('file_excel'))
+                        <div class="alert alert-danger border-0 shadow-sm" role="alert">
+                            <i class="fas fa-exclamation-circle mr-1"></i> {{ $errors->first('file_excel') }}
+                        </div>
+                    @endif
+
+                    <div class="form-group mt-4">
+                        <label class="small font-weight-bold text-dark">Pilih File Excel</label>
+                        <div class="custom-file">
+                            <input type="file" name="file_excel" class="custom-file-input @error('file_excel') is-invalid @enderror" id="importFileGuru" required>
+                            <label class="custom-file-label" for="importFileGuru">Pilih file...</label>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Gunakan format .xlsx atau .xls. Kolom: nip, nama, gelar_depan, gelar_belakang, jenis_kelamin (L/P), email, password.</small>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 p-4">
+                    <button type="button" class="btn btn-light font-weight-bold" data-dismiss="modal" style="border-radius: 10px;">Batal</button>
+                    <button type="submit" class="btn btn-success font-weight-bold px-4 shadow-sm" style="border-radius: 10px;">
+                        Upload & Proses
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -138,10 +204,21 @@
             toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
         });
 
+        $('.custom-file-input').on('change', function() {
+            let fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        });
+
         @if(session('success')) Toast.fire({ icon: 'success', title: "{{ session('success') }}" }); @endif
-        @if($errors->any()) 
-            $('#modalTambahGuru').modal('show');
-            Toast.fire({ icon: 'error', title: 'Periksa inputan Anda' }); 
+        @if(session('error')) Toast.fire({ icon: 'error', title: "{{ session('error') }}" }); @endif
+        @if($errors->any())
+            @if($errors->has('file_excel'))
+                $('#modalImportGuru').modal('show');
+                Toast.fire({ icon: 'error', title: @json($errors->first('file_excel')) });
+            @else
+                $('#modalTambahGuru').modal('show');
+                Toast.fire({ icon: 'error', title: 'Periksa inputan Anda' });
+            @endif
         @endif
     });
 

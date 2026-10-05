@@ -48,6 +48,17 @@
                                 <small class="text-muted">Paste di A untuk split otomatis</small>
                             </div>
 
+                            <div class="alert alert-warning border-0 shadow-sm py-2 px-3 small mb-3">
+                                <i class="fas fa-key mr-1"></i>
+                                Wajib: klik salah satu lingkaran A-E sebagai <strong>kunci jawaban</strong>. Soal tanpa kunci tidak bisa dinilai.
+                            </div>
+
+                            @error('kunci_jawaban')
+                                <div class="alert alert-danger border-0 shadow-sm py-2 px-3 small mb-3">
+                                    <i class="fas fa-exclamation-circle mr-1"></i> {{ $message }}
+                                </div>
+                            @enderror
+
                             @foreach(['A', 'B', 'C', 'D', 'E'] as $i => $l)
                                 <div class="pg-item mb-3">
                                     <div class="d-flex align-items-start">
@@ -57,7 +68,8 @@
                                                        name="kunci_jawaban"
                                                        value="{{ $i }}"
                                                        class="custom-control-input"
-                                                       id="kunci_{{ $i }}">
+                                                       id="kunci_{{ $i }}"
+                                                       required>
                                                 <label class="custom-control-label font-weight-bold" for="kunci_{{ $i }}">
                                                     {{ $l }}
                                                 </label>

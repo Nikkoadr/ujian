@@ -25,6 +25,7 @@
                             <th>Tingkat</th>
                             <th>Kompetensi Keahlian</th>
                             <th>Nama Kelas</th>
+                            <th>Wali Kelas</th>
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -42,6 +43,13 @@
                                 <span class="badge badge-light p-2 border font-weight-bold text-info" style="border-radius: 8px;">
                                     <i class="fas fa-chalkboard mr-1"></i> {{ $kelas->nama_kelas }}
                                 </span>
+                            </td>
+                            <td>
+                                @if($kelas->waliKelas)
+                                    <span class="font-weight-bold text-dark">{{ $kelas->waliKelas->nama_lengkap }}</span>
+                                @else
+                                    <span class="text-muted small">- Belum ditentukan -</span>
+                                @endif
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm" style="border-radius: 10px; overflow: hidden; border: 1px solid #eaecf4;">
@@ -117,6 +125,16 @@
                                value="{{ old('nama_kelas') }}" placeholder="E.g. XII-RPL-1" maxlength="10" required>
                         @error('nama_kelas') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         <small class="text-muted mt-1 d-block italic text-xs">* Maksimal 10 karakter (Contoh: X-TKJ-1)</small>
+                    </div>
+                    <div class="form-group mt-2">
+                        <label class="small font-weight-bold text-dark">Wali Kelas <span class="text-muted font-weight-normal">(opsional)</span></label>
+                        <select name="guru_id" class="form-control @error('guru_id') is-invalid @enderror">
+                            <option value="">-- Tanpa Wali Kelas --</option>
+                            @foreach($data_guru as $g)
+                                <option value="{{ $g->id }}" {{ old('guru_id') == $g->id ? 'selected' : '' }}>{{ $g->nama_lengkap }}</option>
+                            @endforeach
+                        </select>
+                        @error('guru_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
                 <div class="modal-footer border-0 p-4">

@@ -55,6 +55,19 @@
                             @error('nama_kelas') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             <small class="text-muted mt-1 d-block font-italic">Contoh penulisan: X-TKR-1 atau XI-RPL-2</small>
                         </div>
+
+                        <div class="form-group mt-3">
+                            <label class="small font-weight-bold text-dark">Wali Kelas <span class="text-muted font-weight-normal">(opsional)</span></label>
+                            <select name="guru_id" class="form-control @error('guru_id') is-invalid @enderror">
+                                <option value="">-- Tanpa Wali Kelas --</option>
+                                @foreach($data_guru as $g)
+                                    <option value="{{ $g->id }}" {{ (old('guru_id', $kelas->guru_id) == $g->id) ? 'selected' : '' }}>
+                                        {{ $g->nama_lengkap }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('guru_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                     </div>
 
                     <div class="card-footer border-0 bg-light p-4 text-right" style="border-bottom-left-radius: 15px; border-bottom-right-radius: 15px;">

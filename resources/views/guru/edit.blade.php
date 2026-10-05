@@ -31,10 +31,25 @@
                             </div>
                             
                             <div class="col-md-6 form-group">
-                                <label class="small font-weight-bold text-dark">Nama Lengkap & Gelar</label>
+                                <label class="small font-weight-bold text-dark">Nama Lengkap (tanpa gelar)</label>
                                 <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror" 
                                        value="{{ old('nama', $guru->user->nama) }}" required style="border-radius: 8px;">
                                 @error('nama') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label class="small font-weight-bold text-dark">Gelar Depan <span class="text-muted font-weight-normal">(opsional)</span></label>
+                                <input type="text" name="gelar_depan" class="form-control @error('gelar_depan') is-invalid @enderror"
+                                       value="{{ old('gelar_depan', $guru->gelar_depan) }}" placeholder="Dr." maxlength="50" style="border-radius: 8px;">
+                                @error('gelar_depan') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="small font-weight-bold text-dark">Gelar Belakang <span class="text-muted font-weight-normal">(opsional)</span></label>
+                                <input type="text" name="gelar_belakang" class="form-control @error('gelar_belakang') is-invalid @enderror"
+                                       value="{{ old('gelar_belakang', $guru->gelar_belakang) }}" placeholder="S.Pd." maxlength="50" style="border-radius: 8px;">
+                                @error('gelar_belakang') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                         </div>
 

@@ -12,7 +12,13 @@ class Kelas extends Model
         'nama_kelas',
         'tingkat_id',
         'kompetensi_keahlian_id',
+        'guru_id',
     ];
+
+    public function waliKelas()
+    {
+        return $this->belongsTo(Guru::class, 'guru_id');
+    }
 
     public function tingkat()
     {
