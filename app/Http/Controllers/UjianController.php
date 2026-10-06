@@ -73,6 +73,19 @@ class UjianController extends Controller
             ]);
             $waktuMulai = $sekarang;
             $pelanggaran = 0;
+        } elseif (! $partisipasi->mulai_ujian) {
+            // Sisa reset lama (mulai_ujian null): anggap mulai baru sekarang
+            // agar timer terisi, bukan error/lanjut tanpa waktu.
+            DB::table('ujian_siswa')
+                ->where('user_id', $user->id)
+                ->where('jadwal_id', $jadwal->id)
+                ->update([
+                    'status' => 'sedang mengerjakan',
+                    'mulai_ujian' => $sekarang,
+                    'updated_at' => $sekarang,
+                ]);
+            $waktuMulai = $sekarang;
+            $pelanggaran = (int) $partisipasi->pelanggaran;
         } else {
             $waktuMulai = Carbon::parse($partisipasi->mulai_ujian);
             $pelanggaran = $partisipasi->pelanggaran;

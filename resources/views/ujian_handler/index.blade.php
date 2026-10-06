@@ -457,12 +457,11 @@ function resetUjian() {
         title: 'Reset Ujian?',
         html: `
             <p><strong>${ids.length}</strong> peserta akan direset.</p>
-            <p class="text-danger small">Aksi ini akan menghapus progres ujian dan mengembalikan status ke awal!</p>
+            <p class="text-danger small">Aksi ini akan menghapus sesi & progres ujian peserta!</p>
             <ul class="text-left small">
-                <li>Status kembali ke "Sedang Mengerjakan"</li>
-                <li>Pelanggaran direset menjadi 0</li>
-                <li>Waktu mulai & selesai dikosongkan</li>
+                <li>Sesi ujian dihapus total (termasuk pelanggaran)</li>
                 <li>Progres jawaban dihapus</li>
+                <li>Siswa wajib input token ulang dan mulai dari awal dengan timer penuh</li>
             </ul>
         `,
         icon: 'warning',

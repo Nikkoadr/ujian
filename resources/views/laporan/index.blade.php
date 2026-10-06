@@ -157,10 +157,6 @@
                 <button type="submit" class="btn btn-info" formaction="{{ route('laporan.rekap') }}" formtarget="_blank">
                     <i class="fas fa-eye mr-1"></i> Pratinjau
                 </button>
-
-                <button type="submit" class="btn btn-danger" formaction="{{ route('laporan.rekap-pdf') }}">
-                    <i class="fas fa-download mr-1"></i> Download PDF
-                </button>
             </div>
         </form>
     </div>

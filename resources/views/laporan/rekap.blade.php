@@ -1,8 +1,7 @@
 @php
-    $isPdfMode = ! empty($isPdf);
-    // Browser pratinjau pakai URL, dompdf pakai path file lokal.
-    $srcKanan = $isPdfMode ? $logoKanan : asset('assets/img/logo.png');
-    $srcKiri = $isPdfMode ? $logoKiri : asset('assets/img/dikdasmen.png');
+    // Pratinjau browser pakai URL publik.
+    $srcKanan = asset('assets/img/logo.png');
+    $srcKiri = asset('assets/img/dikdasmen.png');
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -26,7 +25,10 @@
         table.nilai thead { display: table-header-group; }
         table.nilai tr { page-break-inside: avoid; }
         table.nilai th, table.nilai td { border: 1px solid #444; padding: 3px 4px; overflow: hidden; }
-        table.nilai th { background: #e5e7eb; font-size: 8pt; word-break: break-word; }
+        table.nilai th { background: #2196f3; color: #fff; font-size: 7.5pt; word-break: break-word; vertical-align: middle; text-align: center; }
+        th.mapel-vert { vertical-align: bottom; padding: 6px 1px; }
+        .vwrap { display: inline-flex; gap: 3px; }
+        .vcol { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
         table.nilai td { font-size: 8pt; word-break: break-word; }
         td.num { text-align: center; }
         td.nama { text-align: left; }
@@ -39,11 +41,9 @@
     </style>
 </head>
 <body>
-    @if(! $isPdfMode)
-        <div class="toolbar">
-            <button onclick="window.print()">Cetak / Simpan PDF</button>
-        </div>
-    @endif
+    <div class="toolbar">
+        <button onclick="window.print()">Cetak / Simpan PDF</button>
+    </div>
 
     <div style="text-align: center;">
         <table class="kop-table">
@@ -104,46 +104,95 @@
     <table class="nilai">
         <colgroup>
             <col style="width:26px;">
-            <col style="width:52px;">
-            <col style="width:66px;">
-            <col>
+            <col style="width:70px;">
+            <col style="width:150px;">
             @foreach($mapels as $mapel)
-                <col>
+                <col style="width:30px;">
             @endforeach
+            <col style="width:44px;">
             <col style="width:40px;">
+            <col style="width:44px;">
+            <col style="width:44px;">
         </colgroup>
         <thead>
             <tr>
                 <th>No</th>
-                <th>NIS</th>
                 <th>NISN</th>
-                <th>Nama Siswa</th>
+                <th>Nama Peserta Didik</th>
                 @foreach($mapels as $mapel)
-                    <th>{{ $mapel->nama_mapel }}</th>
+                    <th class="mapel-vert"><span class="vwrap">@foreach($mapel->nama_baris as $baris)<span class="vcol">{!! $baris !!}</span>@endforeach</span></th>
                 @endforeach
-                <th>Rata2</th>
+                <th class="mapel-vert"><span class="vwrap"><span class="vcol">Kumulatif</span></span></th>
+                <th class="mapel-vert"><span class="vwrap"><span class="vcol">Nilai</span></span><span class="vwrap"><span class="vcol">Rata-Rata</span></span></th>
+                <th class="mapel-vert"><span class="vwrap"><span class="vcol">Predikat</span></span></th>
+                <th class="mapel-vert"><span class="vwrap"><span class="vcol">Peringkat</span></span></th>
             </tr>
         </thead>
         <tbody>
+            @php $peringkatMax = $rows->max('peringkat'); @endphp
             @forelse($rows as $row)
-                <tr>
+                <tr @if(($row['peringkat'] ?? 0) === 1) style="background:#bbf7d0;" @elseif(! empty($row['peringkat']) && $row['peringkat'] === $peringkatMax && $peringkatMax > 1) style="background:#fecaca;" @endif>
                     <td class="num">{{ $row['no'] }}</td>
-                    <td class="num">{{ $row['nis'] }}</td>
                     <td class="num">{{ $row['nisn'] }}</td>
                     <td class="nama">{{ $row['nama'] }}</td>
                     @foreach($mapels as $mapel)
-                        <td class="num">{{ number_format($row['nilai'][$mapel->id] ?? 0, 1) }}</td>
+                        @php $skorMapel = $row['nilai'][$mapel->id] ?? 0; @endphp
+                        <td class="num" @if($skorMapel < 75) style="color:#dc2626; font-weight:bold;" @endif>{{ rtrim(rtrim(number_format($skorMapel, 1), '0'), '.') }}</td>
                     @endforeach
-                    <td class="num"><strong>{{ number_format($row['rata'], 1) }}</strong></td>
+                    <td class="num"><strong>{{ rtrim(rtrim(number_format($row['kumulatif'], 1), '0'), '.') }}</strong></td>
+                    <td class="num" @if($row['rata'] < 75) style="color:#dc2626;" @endif><strong>{{ rtrim(rtrim(number_format($row['rata'], 1), '0'), '.') }}</strong></td>
+                    <td class="num">{{ $row['predikat'] }}</td>
+                    <td class="num"><strong>{{ $row['peringkat'] ?? '-' }}</strong></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 5 + count($mapels) }}" style="text-align:center;">Tidak ada siswa di kelas ini.</td>
+                    <td colspan="{{ 7 + count($mapels) }}" style="text-align:center;">Tidak ada siswa di kelas ini.</td>
                 </tr>
             @endforelse
         </tbody>
     </table>
 
     <div class="ket">Keterangan: nilai 0 berarti siswa tidak/belum mengerjakan mapel tersebut.</div>
+
+    @php
+        $bulanId = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
+        $tanggalTtd = date('d') . ' ' . $bulanId[(int) date('n')] . ' ' . date('Y');
+        $ttdKepsek = $setting->ttd_kepala_sekolah ?? null;
+        $srcTtd = $ttdKepsek ? \Illuminate\Support\Facades\Storage::disk('r2')->url($ttdKepsek) : null;
+    @endphp
+
+    <table style="width:100%; border-collapse:collapse; margin-top:24px; font-size:8pt;">
+        <tr>
+            <td style="width:35%; border:none;" valign="top">
+                <div style="display:inline-block; text-align:center;">
+                    Mengetahui,<br>
+                    Kepala Sekolah,<br>
+                    <div style="height:70px;">
+                        @if(! empty($srcTtd))
+                            <img src="{{ $srcTtd }}" style="max-width:150px; max-height:70px;">
+                        @endif
+                    </div>
+                    @if(! empty($setting->nama_kepala_sekolah))
+                        <strong><u>{{ $setting->nama_kepala_sekolah }}</u></strong>
+                    @else
+                        <span style="display:inline-block; width:95px; border-bottom:1px dotted #000;">&nbsp;</span>
+                    @endif
+                </div>
+            </td>
+            <td style="border:none;"></td>
+            <td style="width:35%; border:none; text-align:right;" valign="top">
+                <div style="display:inline-block; text-align:center;">
+                    Kandanghaur, {{ $tanggalTtd }}<br>
+                    Wali Kelas<br>
+                    <div style="height:70px;"></div>
+                    @if(! empty($namaWaliKelas))
+                        <strong><u>{{ $namaWaliKelas }}</u></strong>
+                    @else
+                        <span style="display:inline-block; width:95px; border-bottom:1px dotted #000;">&nbsp;</span>
+                    @endif
+                </div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

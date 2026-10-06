@@ -170,14 +170,10 @@
                 </div>
             </div>
 
-            <div class="p-5 border-t border-slate-100 flex gap-3">
+            <div class="p-5 border-t border-slate-100">
                 <button type="submit" formaction="{{ route('laporan.rekap') }}" formtarget="_blank"
-                    class="flex-1 h-12 bg-sky-500 text-white rounded-2xl font-bold shadow-lg shadow-sky-100">
+                    class="w-full h-12 bg-sky-500 text-white rounded-2xl font-bold shadow-lg shadow-sky-100">
                     Pratinjau
-                </button>
-                <button type="submit" formaction="{{ route('laporan.rekap-pdf') }}"
-                    class="flex-1 h-12 bg-rose-500 text-white rounded-2xl font-bold shadow-lg shadow-rose-100">
-                    PDF
                 </button>
             </div>
         </form>

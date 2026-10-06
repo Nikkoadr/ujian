@@ -8,7 +8,6 @@ use App\Models\Kelas;
 use App\Models\Mapel;
 use App\Models\PeriodeUjian;
 use App\Models\Setting;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -144,42 +143,13 @@ class LaporanController extends Controller
     }
 
     /**
-     * Unduh rekap silang sebagai PDF landscape (khusus admin).
-     */
-    public function rekapPdf(Request $request)
-    {
-        if (Gate::denies('admin') && Gate::denies('pengawas')) {
-            abort(403);
-        }
-
-        $request->validate([
-            'periode_ujian_id' => 'required|exists:periode_ujian,id',
-            'kelas_id' => 'required|exists:kelas,id',
-        ]);
-
-        $data = $this->buildRekap(
-            $request->periode_ujian_id,
-            $request->kelas_id
-        );
-        $data['isPdf'] = true;
-
-        $namaKelas = str_replace([' ', '/', '\\'], '_', $data['kelas']->nama_kelas);
-        $namaPeriode = str_replace([' ', '/', '\\'], '_', $data['periode']->nama_periode);
-        $filename = "Rekap_{$namaKelas}_{$namaPeriode}_".date('Y-m-d').'.pdf';
-
-        return Pdf::loadView('laporan.rekap', $data)
-            ->setPaper('a4', 'landscape')
-            ->download($filename);
-    }
-
-    /**
      * Susun matriks nilai: tiap siswa x tiap mapel (periode + setingkat kelas).
      * Tak ikut = 0. Mapel berjadwal ganda: partisipasi pertama yang dipakai.
      */
     private function buildRekap($periodeId, $kelasId)
     {
         $periode = PeriodeUjian::findOrFail($periodeId);
-        $kelas = Kelas::findOrFail($kelasId);
+        $kelas = Kelas::with(['waliKelas.user'])->findOrFail($kelasId);
 
         // Mapel yang ada jadwalnya di periode ini + setingkat kelas +
         // sekompetensi kelas. Mapel UMUM (tanpa kompetensi) tampil untuk semua.
@@ -197,7 +167,18 @@ class LaporanController extends Controller
             ->select('mapel.id', 'mapel.nama_mapel', 'mapel.kompetensi_keahlian_id')
             ->distinct()
             ->orderBy('mapel.nama_mapel')
-            ->get();
+            ->get()
+            ->map(function ($mapel) {
+                // Kelompok A = umum, B = kejuruan. Nama pendek buang
+                // penanda "KELAS n", lalu dibagi seimbang menjadi 2 baris.
+                $mapel->kelompok = is_null($mapel->kompetensi_keahlian_id) ? 'A' : 'B';
+                $pendek = trim((string) preg_replace('/\s+KELAS\s+\d+\s*$/i', '', $mapel->nama_mapel));
+                $baris = $this->pecahDuaBaris($pendek);
+                $mapel->nama_baris = $baris;
+                $mapel->nama_dua_baris = implode('<br>', $baris);
+
+                return $mapel;
+            });
 
         $jadwalPerMapel = DB::table('jadwal')
             ->where('periode_ujian_id', $periodeId)
@@ -254,6 +235,9 @@ class LaporanController extends Controller
                 $nilai[$mapel->id] = $skor;
             }
 
+            $kumulatif = array_sum($nilai);
+            $rata = count($nilai) > 0 ? round($kumulatif / count($nilai), 1) : 0;
+
             return [
                 'no' => $index + 1,
                 'user_id' => $siswa->user_id,
@@ -261,8 +245,32 @@ class LaporanController extends Controller
                 'nisn' => $siswa->nisn,
                 'nama' => $siswa->nama_siswa,
                 'nilai' => $nilai,
-                'rata' => count($nilai) > 0 ? round(array_sum($nilai) / count($nilai), 1) : 0,
+                'kumulatif' => $kumulatif,
+                'rata' => $rata,
+                'predikat' => $this->predikatHuruf((int) round($rata)),
             ];
+        });
+
+        // Peringkat berurutan 1..N tanpa kembar: rata2 tertinggi dulu,
+        // nilai sama diurut abjad (yang 0 semua pun punya peringkat
+        // sendiri-sendiri, bukan berbagi peringkat buncit).
+        $peringkat = 0;
+        $ranks = [];
+
+        $terurut = $rows->sortBy([
+            ['rata', 'desc'],
+            ['nama', 'asc'],
+        ])->values();
+
+        foreach ($terurut as $row) {
+            $peringkat++;
+            $ranks[$row['no']] = $peringkat;
+        }
+
+        $rows = $rows->map(function ($row) use ($ranks) {
+            $row['peringkat'] = $ranks[$row['no']] ?? null;
+
+            return $row;
         });
 
         return [
@@ -270,6 +278,8 @@ class LaporanController extends Controller
             'kelas' => $kelas,
             'mapels' => $mapels,
             'rows' => $rows,
+            'setting' => Setting::first(),
+            'namaWaliKelas' => $kelas->waliKelas ? $kelas->waliKelas->nama_lengkap : null,
             // Logo kop: pakai file lokal agar bisa dibaca dompdf.
             // Logo kiri (Dikdasmen) belum ada file-nya -> sel kosong otomatis.
             'logoKiri' => public_path('assets/img/dikdasmen.png'),
@@ -629,23 +639,20 @@ class LaporanController extends Controller
     }
 
     /**
-     * Peringkat kompetisi sekelas berdasarkan rata2 (sama -> peringkat sama).
+     * Peringkat berurutan 1..N tanpa kembar (seri -> abjad).
      */
     private function peringkatKelas($rows)
     {
         $peringkat = 0;
-        $terakhir = null;
-        $urutan = 0;
         $map = [];
 
-        foreach (collect($rows)->sortByDesc('rata')->values() as $row) {
-            $urutan++;
+        $terurut = collect($rows)->sortBy([
+            ['rata', 'desc'],
+            ['nama', 'asc'],
+        ])->values();
 
-            if ($terakhir === null || $row['rata'] < $terakhir) {
-                $peringkat = $urutan;
-                $terakhir = $row['rata'];
-            }
-
+        foreach ($terurut as $row) {
+            $peringkat++;
             $map[$row['user_id']] = $peringkat;
         }
 
@@ -704,6 +711,39 @@ class LaporanController extends Controller
         }
 
         return implode(' ', $kata);
+    }
+
+    /**
+     * Bagi nama mapel menjadi 2 baris seimbang untuk header tabel.
+     * Mengembalikan array 2 string (sudah di-escape).
+     */
+    private function pecahDuaBaris($nama)
+    {
+        $kata = preg_split('/\s+/', trim((string) $nama));
+
+        if (count($kata) < 2) {
+            return [e($nama)];
+        }
+
+        $total = strlen(implode(' ', $kata));
+        $baris1 = [];
+        $baris2 = [];
+        $panjang = 0;
+
+        foreach ($kata as $k) {
+            if ($panjang + strlen($k) > $total / 2 && ! empty($baris1)) {
+                $baris2[] = $k;
+            } else {
+                $baris1[] = $k;
+                $panjang += strlen($k) + 1;
+            }
+        }
+
+        if (empty($baris2)) {
+            return [e($nama)];
+        }
+
+        return [e(implode(' ', $baris1)), e(implode(' ', $baris2))];
     }
 
     private function predikatKata($nilai)

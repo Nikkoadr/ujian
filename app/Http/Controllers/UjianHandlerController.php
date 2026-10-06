@@ -220,34 +220,29 @@ class UjianHandlerController extends Controller
             'ids.*' => 'exists:ujian_siswa,id',
         ]);
 
-        $updated = DB::table('ujian_siswa')
+        // Ambil pasangan user+jadwal dulu karena barisnya akan dihapus.
+        $pasangan = DB::table('ujian_siswa')
             ->whereIn('id', $request->ids)
-            ->update([
-                'status' => 'sedang mengerjakan',
-                'pelanggaran' => 0,
-                'mulai_ujian' => null,
-                'selesai_ujian' => null,
-                'updated_at' => now(),
-            ]);
+            ->select('user_id', 'jadwal_id')
+            ->get();
 
-        // Hapus progres siswa yang terkait
+        // Hapus progres siswa yang terkait.
         DB::table('progres_siswa')
-            ->whereIn('user_id', function ($query) use ($request) {
-                $query->select('user_id')
-                    ->from('ujian_siswa')
-                    ->whereIn('id', $request->ids);
-            })
-            ->whereIn('jadwal_id', function ($query) use ($request) {
-                $query->select('jadwal_id')
-                    ->from('ujian_siswa')
-                    ->whereIn('id', $request->ids);
-            })
+            ->whereIn('user_id', $pasangan->pluck('user_id')->unique()->values()->all())
+            ->whereIn('jadwal_id', $pasangan->pluck('jadwal_id')->unique()->values()->all())
+            ->delete();
+
+        // Hapus sesi ujiannya sekalian (bukan dikosongkan): siswa wajib
+        // validasi token ulang dan mulai dari awal dengan timer penuh.
+        // Cara lama (mulai_ujian = null) membuat timer rusak saat lanjut.
+        $deleted = DB::table('ujian_siswa')
+            ->whereIn('id', $request->ids)
             ->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Data ujian berhasil direset.',
-            'affected' => $updated,
+            'message' => 'Data ujian berhasil direset. Siswa memulai dari awal.',
+            'affected' => $deleted,
         ]);
     }
 }

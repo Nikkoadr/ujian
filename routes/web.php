@@ -82,7 +82,6 @@ Route::get('/laporan/mapel', [LaporanController::class, 'mapelByPeriode'])->name
 Route::get('/laporan/kelas', [LaporanController::class, 'kelasByMapel'])->name('laporan.kelas');
 Route::get('/laporan/export', [LaporanController::class, 'exportExcel'])->name('laporan.export');
 Route::get('/laporan/rekap', [LaporanController::class, 'rekap'])->name('laporan.rekap');
-Route::get('/laporan/rekap-pdf', [LaporanController::class, 'rekapPdf'])->name('laporan.rekap-pdf');
 Route::get('/laporan/individu', [LaporanController::class, 'individu'])->name('laporan.individu');
 Route::get('/laporan/individu/cetak', [LaporanController::class, 'individuCetak'])->name('laporan.individu.cetak');
 
