@@ -793,15 +793,26 @@ class LaporanController extends Controller
         $romawi = ['10' => 'X', '11' => 'XI', '12' => 'XII'];
         $namaTingkat = $kelas->tingkat->nama_tingkat ?? '';
 
-        $mulai = (int) date('Y', strtotime($periode->tanggal_mulai));
-        $selesai = (int) date('Y', strtotime($periode->tanggal_selesai));
-        $bulanMulai = (int) date('n', strtotime($periode->tanggal_mulai));
+        // Utamakan kolom periode; kalau kosong (data lama) turunkan dari tanggal.
+        if (! empty($periode->tahun_ajaran)) {
+            $tahun = str_replace('/', ' / ', $periode->tahun_ajaran);
+        } else {
+            $mulai = (int) date('Y', strtotime($periode->tanggal_mulai));
+            $selesai = (int) date('Y', strtotime($periode->tanggal_selesai));
+            $tahun = $mulai.' / '.$selesai;
+        }
+
+        if (! empty($periode->semester)) {
+            $semester = $periode->semester;
+        } else {
+            $bulanMulai = (int) date('n', strtotime($periode->tanggal_mulai));
+            $semester = $bulanMulai >= 7 ? 'Ganjil' : 'Genap';
+        }
 
         return [
             'tingkat' => 'Kelas '.($romawi[$namaTingkat] ?? $namaTingkat),
-            'tahun' => $mulai.' / '.$selesai,
-            // Periode mulai Juli-Desember = semester Ganjil.
-            'semester' => $bulanMulai >= 7 ? 'Ganjil' : 'Genap',
+            'tahun' => $tahun,
+            'semester' => $semester,
         ];
     }
 

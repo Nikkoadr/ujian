@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\PeriodeUjian;
+use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class PeriodeUjianController extends Controller
 {
-
     /**
      * Create a new controller instance.
      *
@@ -22,12 +22,12 @@ class PeriodeUjianController extends Controller
     /**
      * Show the application dashboard.
      *
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return Renderable
      */
-    
     public function index()
     {
         $periodeUjian = PeriodeUjian::latest()->get();
+
         return view('periode_ujian.index', compact('periodeUjian'));
     }
 
@@ -39,11 +39,13 @@ class PeriodeUjianController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'nama_periode'   => 'required|string|max:255',
-            'tanggal_mulai'  => 'required|date',
+            'nama_periode' => 'required|string|max:255',
+            'tahun_ajaran' => 'required|string|max:20',
+            'semester' => 'required|in:Ganjil,Genap',
+            'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-            'deskripsi'      => 'nullable|string',
-            'is_active'      => 'boolean',
+            'deskripsi' => 'nullable|string',
+            'is_active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -58,11 +60,13 @@ class PeriodeUjianController extends Controller
         }
 
         PeriodeUjian::create([
-            'nama_periode'   => $request->nama_periode,
-            'tanggal_mulai'  => $request->tanggal_mulai,
+            'nama_periode' => $request->nama_periode,
+            'tahun_ajaran' => $request->tahun_ajaran,
+            'semester' => $request->semester,
+            'tanggal_mulai' => $request->tanggal_mulai,
             'tanggal_selesai' => $request->tanggal_selesai,
-            'deskripsi'      => $request->deskripsi,
-            'is_active'      => $active ? 1 : 0,
+            'deskripsi' => $request->deskripsi,
+            'is_active' => $active ? 1 : 0,
         ]);
 
         return redirect()->route('periode_ujian.index')
@@ -82,11 +86,13 @@ class PeriodeUjianController extends Controller
     public function update(Request $request, PeriodeUjian $periodeUjian)
     {
         $validator = Validator::make($request->all(), [
-            'nama_periode'   => 'required|string|max:255',
-            'tanggal_mulai'  => 'required|date',
+            'nama_periode' => 'required|string|max:255',
+            'tahun_ajaran' => 'required|string|max:20',
+            'semester' => 'required|in:Ganjil,Genap',
+            'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-            'deskripsi'      => 'nullable|string',
-            'is_active'      => 'boolean',
+            'deskripsi' => 'nullable|string',
+            'is_active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -103,11 +109,13 @@ class PeriodeUjianController extends Controller
         }
 
         $periodeUjian->update([
-            'nama_periode'   => $request->nama_periode,
-            'tanggal_mulai'  => $request->tanggal_mulai,
+            'nama_periode' => $request->nama_periode,
+            'tahun_ajaran' => $request->tahun_ajaran,
+            'semester' => $request->semester,
+            'tanggal_mulai' => $request->tanggal_mulai,
             'tanggal_selesai' => $request->tanggal_selesai,
-            'deskripsi'      => $request->deskripsi,
-            'is_active'      => $active ? 1 : 0,
+            'deskripsi' => $request->deskripsi,
+            'is_active' => $active ? 1 : 0,
         ]);
 
         return redirect()->route('periode_ujian.index')
@@ -117,6 +125,7 @@ class PeriodeUjianController extends Controller
     public function destroy(PeriodeUjian $periodeUjian)
     {
         $periodeUjian->delete();
+
         return redirect()->route('periode_ujian.index')
             ->with('success', 'Periode Ujian berhasil dihapus.');
     }

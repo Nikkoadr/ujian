@@ -136,10 +136,10 @@
                     <td class="num">{{ $row['nisn'] }}</td>
                     <td class="nama">{{ $row['nama'] }}</td>
                     @foreach($mapels as $mapel)
-                        @php $skorMapel = $row['nilai'][$mapel->id] ?? 0; @endphp
-                        <td class="num" @if($skorMapel < 75) style="color:#dc2626; font-weight:bold;" @endif>{{ rtrim(rtrim(number_format($skorMapel, 1), '0'), '.') }}</td>
+                        @php $skorMapel = (int) round($row['nilai'][$mapel->id] ?? 0); @endphp
+                        <td class="num" @if($skorMapel < 75) style="color:#dc2626; font-weight:bold;" @endif>{{ $skorMapel }}</td>
                     @endforeach
-                    <td class="num"><strong>{{ rtrim(rtrim(number_format($row['kumulatif'], 1), '0'), '.') }}</strong></td>
+                    <td class="num"><strong>{{ (int) round($row['kumulatif']) }}</strong></td>
                     <td class="num" @if($row['rata'] < 75) style="color:#dc2626;" @endif><strong>{{ rtrim(rtrim(number_format($row['rata'], 1), '0'), '.') }}</strong></td>
                     <td class="num">{{ $row['predikat'] }}</td>
                     <td class="num"><strong>{{ $row['peringkat'] ?? '-' }}</strong></td>

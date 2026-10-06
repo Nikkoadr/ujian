@@ -43,6 +43,24 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label for="tahun_ajaran" class="font-weight-bold">Tahun Ajaran <span class="text-danger">*</span></label>
+                                    <input type="text" name="tahun_ajaran" id="tahun_ajaran" class="form-control" value="{{ old('tahun_ajaran', $periodeUjian->tahun_ajaran) }}" placeholder="2026/2027" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="semester" class="font-weight-bold">Semester <span class="text-danger">*</span></label>
+                                    <select name="semester" id="semester" class="form-control" required>
+                                        <option value="Ganjil" {{ old('semester', $periodeUjian->semester) == 'Ganjil' ? 'selected' : '' }}>Ganjil</option>
+                                        <option value="Genap" {{ old('semester', $periodeUjian->semester) == 'Genap' ? 'selected' : '' }}>Genap</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label for="tanggal_mulai" class="font-weight-bold">Tanggal Mulai <span class="text-danger">*</span></label>
                                     <input type="date" name="tanggal_mulai" id="tanggal_mulai" class="form-control" value="{{ old('tanggal_mulai', $periodeUjian->tanggal_mulai ? \Carbon\Carbon::parse($periodeUjian->tanggal_mulai)->format('Y-m-d') : '') }}" required>
                                 </div>

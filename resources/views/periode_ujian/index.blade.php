@@ -61,6 +61,8 @@
                                 <tr>
                                     <th>No</th>
                                     <th>Nama Periode</th>
+                                    <th>Tahun Ajaran</th>
+                                    <th>Semester</th>
                                     <th>Tanggal Mulai</th>
                                     <th>Tanggal Selesai</th>
                                     <th>Status</th>
@@ -72,6 +74,8 @@
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $periode->nama_periode }}</td>
+                                    <td>{{ $periode->tahun_ajaran ?? '-' }}</td>
+                                    <td>{{ $periode->semester ?? '-' }}</td>
                                     <td>{{ $periode->tanggal_mulai ? \Carbon\Carbon::parse($periode->tanggal_mulai)->format('d-m-Y') : '-' }}</td>
                                     <td>{{ $periode->tanggal_selesai ? \Carbon\Carbon::parse($periode->tanggal_selesai)->format('d-m-Y') : '-' }}</td>
                                     <td>
@@ -98,7 +102,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" class="text-center">Belum ada periode ujian.</td>
+                                    <td colspan="8" class="text-center">Belum ada periode ujian.</td>
                                 </tr>
                                 @endforelse
                             </tbody>
@@ -141,6 +145,24 @@
                     <div class="form-group">
                         <label for="nama_periode" class="font-weight-bold">Nama Periode <span class="text-danger">*</span></label>
                         <input type="text" name="nama_periode" id="nama_periode" class="form-control" value="{{ old('nama_periode') }}" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="tahun_ajaran" class="font-weight-bold">Tahun Ajaran <span class="text-danger">*</span></label>
+                                <input type="text" name="tahun_ajaran" id="tahun_ajaran" class="form-control" value="{{ old('tahun_ajaran') }}" placeholder="2026/2027" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="semester" class="font-weight-bold">Semester <span class="text-danger">*</span></label>
+                                <select name="semester" id="semester" class="form-control" required>
+                                    <option value="Ganjil" {{ old('semester') == 'Ganjil' ? 'selected' : '' }}>Ganjil</option>
+                                    <option value="Genap" {{ old('semester') == 'Genap' ? 'selected' : '' }}>Genap</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row">
